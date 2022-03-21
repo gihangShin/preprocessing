@@ -5,6 +5,8 @@ from preprocessing import service
 from view import create_endpoints
 
 __name__ = "__main__"
+
+
 def create_app():
     app = Flask(__name__)
 
@@ -12,7 +14,7 @@ def create_app():
     if __name__ == "__main__":
         app.run(debug=True)
     # preprocessing 전처리 (service)
-    pre_service = service.preprocessingService()
+    pre_service = service.preprocessingService(app)
 
     # 엔드포인트 생성
     create_endpoints(app, pre_service)
