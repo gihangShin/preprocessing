@@ -11,6 +11,7 @@ class Preprocessing:
     def __init__(self, app):
         self.app = app
 
+    # 세션 정보 확인용
     def print_session_keys(self):
         for k in session.keys():
             print(k)
@@ -33,6 +34,7 @@ class Preprocessing:
         session['extension'] = extension
         self.print_session_keys()
 
+    # 버전 정보 X
     def split_url(self, url):
         full_name = url.split('/')[-1]
         file_name_version = full_name.split('.')[0]
@@ -86,14 +88,6 @@ class Preprocessing:
     # self.app = app
     # self.df = df
 
-    # csv 읽기
-    def getbankcsv(self):
-        df = pd.read_csv('./preprocessing/data/bank.csv')
-        return df
-
-    def getsampletraincsv(self):
-        return self.df
-
     # 예외처리는 일단 나중으로 미루자
 
     # 데이터 처리
@@ -105,7 +99,7 @@ class Preprocessing:
     # 열 연산만
     def missing_value(self, missing_value, columns=None, input_data=None):
         # missing_value
-        print('missingvalue before')
+        print('missing_value before')
         self.show_df_from_session()
         if missing_value == 'remove':  # ok
             df = self.remove_missing_value(columns=columns)
@@ -121,9 +115,10 @@ class Preprocessing:
             df = self.fill_missing_value_first_row()
         elif missing_value == 'input':  # ok
             df = self.fill_missing_value_specified_value(columns=columns, input_data=input_data)
-        print('missingvalue after')
-        self.save_df_in_session(df)
+
+        print('missing_value after')
         self.show_df_from_session()
+        self.save_df_in_session(df)
 
     def remove_missing_value(self, columns=None):
         df = self.get_df_from_session()

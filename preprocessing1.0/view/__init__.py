@@ -2,7 +2,6 @@ from flask import request, jsonify, current_app, Response, g, session, Blueprint
 import pandas as pd
 
 
-
 def create_endpoints(app, service):
     # 필요하면 encoder
 
@@ -13,13 +12,19 @@ def create_endpoints(app, service):
     bp_preprocessing = Blueprint('preprocessing', __name__, url_prefix='/preprocessing')
     app.register_blueprint(bp_preprocessing)
     # profiling
-    bp_profiling = Blueprint('profiling',__name__,url_prefix='/profiling')
+    bp_profiling = Blueprint('profiling', __name__, url_prefix='/profiling')
     app.register_blueprint(bp_profiling)
 
     # 결측치 처리
     # /preprecessing/missingvalue
-    # 파라미터 missingvalue
+    # 파라미터 m_value
     # 일단 column 기준
+    # Response Parameter -> DB에 저장할 값들
+    #jobId
+    #jobs
+    #targetColumns
+    #dataTarget
+
     @bp_preprocessing.route('/missingvalue', methods=['GET'])
     def missing_value():
         payload = request.get_json(force=True)
@@ -48,28 +53,13 @@ def create_endpoints(app, service):
         preprocessing_service.load_df_from_directory()
         return '1234'
 
-
     @app.route('/preprocessing_negative_value', methods=['GET'])
     def preprocessing_negative_value():
         column = 'transaction_real_price'
         preprocessing_service.preprocessing_negative_value(columns=column)
         return '1234'
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    ## 세션 동작 확인
+    ##############################################################################
+    ## 세션 동작 확인용
     @app.route('/set_session', methods=['GET'])
     def set_session():
         session['test'] = 'test1234'

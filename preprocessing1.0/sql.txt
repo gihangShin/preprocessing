@@ -1,0 +1,33 @@
+-- project
+-- 프로젝트 정보
+create table project(
+	id varchar(10) primary key,
+	name varchar(255) unique,
+	data_set varchar(10),
+	version integer,
+	status varchar(1),
+	last_update_datetime timestamp,
+	last_update_user_id varchar(10),
+	create_datetime timestamp,
+	create_user_id varchar(10)
+);
+
+
+-- file
+-- 파일 정보
+create table file(
+	id varchar(10) primary key,
+	pjt_id varchar(10),
+	name varchar(255),
+	org_name varchar(255),
+	ext varchar (5),
+	size integer ,
+	path varchar (25),
+	type varchar (5),
+	use_flag varchar (1),
+	status varchar (1),
+	last_update_datetime timestamp,
+	last_update_user_id varchar (10),
+	create_datetime timestamp ,
+	create_user_id varchar(10)
+);
