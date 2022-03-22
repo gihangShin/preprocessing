@@ -1,5 +1,6 @@
 from flask import Flask, session
 from flask_cors import CORS
+from flask_session import Session
 
 from preprocessing import preprocessingservice
 from view import create_endpoints
@@ -15,11 +16,14 @@ def create_app():
     app = Flask(__name__)
 
     app.secret_key='1dsaidzicoqj1515'
+    app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_TYPE"] = "filesystem"
+    Session(app)
     CORS(app)
     if __name__ == "__main__":
         app.run(debug=True)
     # preprocessing 전처리 (service)
-    pre_service = service.PreprocessingService(app)
+    pre_service = preprocessingservice.Preprocessing(app)
 
     # 엔드포인트 생성
     create_endpoints(app, pre_service)

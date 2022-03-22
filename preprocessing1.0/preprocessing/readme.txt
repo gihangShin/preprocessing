@@ -1,5 +1,9 @@
 비지니스 로직 구현
 
+# httpie -v --admin [method] url
+
+
+
 실질적인 전처리 로직 구현
 
 

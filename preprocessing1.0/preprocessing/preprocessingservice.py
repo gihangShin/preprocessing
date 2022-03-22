@@ -1,45 +1,64 @@
 import pandas as pd
 import math
 from flask import session
+from flask_session import Session
 
 
-class PreprocessingService:
+class Preprocessing:
     app = None
     df = None
 
-    # 원래 파일 이름, DB에서 가져와야함
-    def load_df_from_directory(self, url):
-        file_name, version, extension = self.split_url(url)
+    def __init__(self, app):
+        self.app = app
 
+    def print_session_keys(self):
+        for k in session.keys():
+            print(k)
+
+    # httpie 사용 시 session 유지 X 초기화됨
+    # http -v --admin [method] url
+    # 원래 파일 이름, DB에서 가져와야함
+    # 원본파일은 버전이 없음 -> 버전정보 나중에 구현
+    def load_df_from_directory(self, url='./preprocessing/data/sampled_train.csv'):
+        # file_name, version, extension = self.split_url(url)
+        file_name, extension = self.split_url(url)
         if extension == 'json':
             df = pd.read_json(url)
         if extension == 'csv':
             df = pd.read_csv(url)
-
-        session['current_df'] = df
+        self.save_df_in_session(df)
+        session['current_df'] = df.to_dict('list')
         session['current_filename'] = file_name
-        session['current_version'] = version
+        # session['current_version'] = version
+        session['extension'] = extension
+        self.print_session_keys()
 
     def split_url(self, url):
         full_name = url.split('/')[-1]
         file_name_version = full_name.split('.')[0]
         extension = full_name.split('.')[1]
 
-        file_name = file_name_version.split('_')[0]
-        version = file_name_version.split('_')[1]
-        return (file_name, version, extension)
+        split_array = file_name_version.split('_')
+        file_name = split_array[:len(split_array) - 2]
+        version = split_array[len(split_array) - 1]
+        # return (file_name, version, extension)
+        return file_name_version, extension
 
     # type = (originfile, preprocessed)
     # 업로드는 나중에
     # def upload_dataset_to_server_directory(self, url):
 
+    def show_df_from_session(self):
+        df = self.get_df_from_session()
+        print(df.head())
 
-
-    def get_df_in_session(self):
-        return session['current_df']
+    def get_df_from_session(self):
+        dict_obj = session['current_df']
+        df = pd.DataFrame(dict_obj)
+        return df
 
     def save_df_in_session(self, df):
-        session['current_df'] = df
+        session['current_df'] = df.to_dict('list')
 
     # method major 버전 증가 ex 1.05 -> 2.00
     # method minor 버전 증가 ex 2.04 -> 2.05
@@ -81,66 +100,88 @@ class PreprocessingService:
     # 결측치 삭제 행, 열
     # axis = 0 -> 행 삭제
     # axis = 1 -> 열 삭제
-    def delete_missing_value(self, axis=0):
-        self.df = self.df.dropna(axis=axis)
-        self.df.to_csv('./preprocessing/data/sampled_traindropna.csv')
-        self.app.dataFrame = self.df
+
+    # columns -> 파라미터
+    # 열 연산만
+    def missing_value(self, missing_value, columns=None, input_data=None):
+        # missing_value
+        print('missingvalue before')
+        self.show_df_from_session()
+        if missing_value == 'remove':  # ok
+            df = self.remove_missing_value(columns=columns)
+        elif missing_value == 'mean':  # ok
+            df = self.fill_missing_value_mean(columns=columns)
+        elif missing_value == 'median':  # ok
+            df = self.fill_missing_value_median(columns=columns)
+        elif missing_value == 'ffill':  # ok
+            df = self.fill_missing_value_front(col=columns)
+        elif missing_value == 'bfill':  # ok
+            df = self.fill_missing_value_back(columns=columns)
+        elif missing_value == 'first_row':
+            df = self.fill_missing_value_first_row()
+        elif missing_value == 'input':  # ok
+            df = self.fill_missing_value_specified_value(columns=columns, input_data=input_data)
+        print('missingvalue after')
+        self.save_df_in_session(df)
+        self.show_df_from_session()
+
+    def remove_missing_value(self, columns=None):
+        df = self.get_df_from_session()
+        if columns is None:
+            df = df.dropna(axis=1)
+        else:
+            df = df.dropna(subset=[columns])
+        return df
 
     # 이전값 채우기
-    def fill_missing_value_pre(self, columns=None):
-        print(self.df.isna().sum())
-        print(self.df.head())
-
+    def fill_missing_value_front(self, columns=None):
+        df = self.get_df_from_session()
         if columns is None:
             # 지정한 column이 없을 시 전체 지정 값 채우기
-            self.df = self.df.fillna(method='ffill')
+            print('column is none')
+            df = df.fillna(method='ffill', axis=1)
         else:
             # 지정한 column이 있을 시 해당 열만 지정 값 채우기
             # columns dtype == 리스트 or 문자열
-            self.df = self.df.fillna(method='ffill', columns=columns)
-        print(self.df.isna().sum())
-        print(self.df.head())
-        self.df.to_csv('./preprocessing/data/sampled_trainffill.csv')
+            df[[columns]] = df[[columns]].ffill()
+        return df
 
     # 다음값 채우기
     def fill_missing_value_back(self, columns=None):
-        print(self.df.head())
-
+        df = self.get_df_from_session()
         if columns is None:
             # 지정한 column이 없을 시 전체 지정 값 채우기
-            self.df = self.df.fillna(method='bfill')
+            df = df.fillna(method='bfill', axis=1)
         else:
             # 지정한 column이 있을 시 해당 열만 지정 값 채우기
             # columns dtype == 리스트 or 문자열
-            self.df = self.df.fillna(method='bfill', columns=columns)
-        print(self.df.head())
-        self.df.to_csv('./preprocessing/data/sampled_trainbfill.csv')
+            df[[columns]] = df[[columns]].bfill()
+        return df
 
     # 지정값 채우기 specified value
-    def fill_missing_value_specified_value(self, specified_value, columns=None):
-        print(self.df.head())
-
+    def fill_missing_value_specified_value(self, input_data, columns=None):
+        df = self.get_df_from_session()
         if columns is None:
             # 지정한 column이 없을 시 전체 지정 값 채우기
-            self.df = self.df.fillna(specified_value)
+            df = df.fillna(input_data)
         else:
             # 지정한 column이 있을 시 해당 열만 지정 값 채우기
-            # columns dtype == 리스트 or 문자열
-            self.df = self.df.fillna(specified_value, columns=columns)
-
-        print(self.df.head())
-        self.df.to_csv('./preprocessing/data/sampled_trainbfill.csv')
+            df[[columns]] = df[[columns]].fillna(value=input_data)
+        return df
 
     # 표준값 채우기
     # 한번에 한 열씩 동작 가정
+    # median
+    def fill_missing_value_median(self, columns):
+        df = self.get_df_from_session()
+        df[columns] = df[columns].fillna(df[columns].median())
+        return df
 
-    def fill_missing_value_std(self, column, method='mean'):
-        # 평균값 mean
-        if method == 'mean':
-            self.df[column] = self.df[column].fillna(self.df[column].mean())
-        # 중앙값 median
-        if method == 'median':
-            self.df[column] = self.df[column].fillna(self.df[column].median())
+    # mean
+    def fill_missing_value_mean(self, columns):
+        df = self.get_df_from_session()
+        df[columns] = df[columns].fillna(df[columns].mean())
+        return df
 
     # 결측 수식적용
 
@@ -153,18 +194,19 @@ class PreprocessingService:
     # 음수 값 -> 0     method = 'tozero'
     # 행 제거 ->       method = 'drop'
     def preprocessing_negative_value(self, columns, method='positive'):
+        df = session['current_df']
         if method == 'drop':
-            idx = self.df[self.df[columns] < 0].index()
-            self.df = self.df.drop(idx)
+            idx = df[df[columns] < 0].index()
+            df = df.drop(idx)
         else:
-            s = pd.DataFrame(self.df[columns])
+            s = pd.DataFrame(df[columns])
             if method == 'positive':
                 s[s < 0] = s[s < 0] * -1
             if method == 'tozero':
                 s[s < 0] = 0
             # if method == 'delete':
-            self.df[columns] = s
-            self.df.to_csv('./preprocessing/data/sampled_train_test.csv')
+            df[columns] = s
+            df.to_csv('./preprocessing/data/sampled_train_test.csv')
 
     # 소수점 처리
 
