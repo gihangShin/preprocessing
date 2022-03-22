@@ -1,42 +1,44 @@
-from flask import request, jsonify, current_app, Response, g
+from flask import request, jsonify, current_app, Response, g, session
 import pandas as pd
 
 
 def create_endpoints(app, service):
     # 필요하면 encoder
 
-    preprocessing_service = service
+    PreprocessingService = service
 
-    # preprocessing_service.__init__(app)
 
-    #
+
     @app.route('/getbankcsv', methods=['GET'])
     def getbankcsv():
-        df = preprocessing_service.getbankcsv()
+        df = PreprocessingService.getbankcsv()
         print(df.head())
         return df.to_html()
 
     @app.route('/getsampletraincsv', methods=['GET'])
     def getsampletraincsv():
-        df = preprocessing_service.getsampletraincsv()
+        df = PreprocessingService.getsampletraincsv()
         print(df.head())
         return df.to_html()
 
     @app.route('/delete_missing_value', methods=['GET'])
     def delete_missing_value():
-        payload = request.json
-        axis = int(payload['axis'])
-        preprocessing_service.delete_missing_value(axis)
+        if 'axis' in request.args:
+            payload = request.json
+            axis = int(payload['axis'])
+        else:
+            axis = 0
+        PreprocessingService.delete_missing_value(axis)
         return '1234'
 
     @app.route('/fill_missing_value_pre', methods=['GET'])
     def fill_missing_value_pre():
-        preprocessing_service.fill_missing_value_pre()
+        PreprocessingService.fill_missing_value_pre()
         return '1234'
 
     @app.route('/fill_missing_value_back', methods=['GET'])
     def fill_missing_value_back():
-        preprocessing_service.fill_missing_value_back()
+        PreprocessingService.fill_missing_value_back()
         return '1234'
 
     @app.route('/fill_missing_value_std', methods=['GET'])
@@ -46,12 +48,28 @@ def create_endpoints(app, service):
         # 수치형 컬럼인지 확인해야함
         column = payload['column']
         print(column)
-        preprocessing_service.fill_missing_value_std(column, method=method)
+        PreprocessingService.fill_missing_value_std(column, method=method)
         return '1234'
 
     @app.route('/preprocessing_negative_value', methods=['GET'])
     def preprocessing_negative_value():
         column = 'transaction_real_price'
-        preprocessing_service.preprocessing_negative_value(columns=column)
+        PreprocessingService.preprocessing_negative_value(columns=column)
         return '1234'
+
+
+    ## 세션 동작 확인
+    @app.route('/set_session', methods=['GET'])
+    def set_session():
+        session['test'] = 'test1234'
+        text = session['test']
+        return text
+
+    @app.route('/test_session', methods=['GET'])
+    def test_session():
+        if 'test' in session.keys():
+            return 'test is None'
+        else :
+            text = session['test']
+            return text
 

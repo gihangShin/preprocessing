@@ -38,6 +38,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\preprocessing1.0\preprocessing\data\sampled_train_test.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\preprocessing1.0\preprocessing\data\sampled_traindropna.csv">
           <value>
             <Attribute>
