@@ -1,5 +1,6 @@
-from flask import request, jsonify, current_app, Response, g, session
+from flask import request, jsonify, current_app, Response, g, session, Blueprint
 import pandas as pd
+
 
 
 def create_endpoints(app, service):
@@ -7,11 +8,19 @@ def create_endpoints(app, service):
 
     preprocessing_service = service
 
+    # blueprint 도메인 나누기
+    # preprocessing
+    bp_preprocessing = Blueprint('preprocessing', __name__, url_prefix='/preprocessing')
+    app.register_blueprint(bp_preprocessing)
+    # profiling
+    bp_profiling = Blueprint('profiling',__name__,url_prefix='/profiling')
+    app.register_blueprint(bp_profiling)
+
     # 결측치 처리
     # /preprecessing/missingvalue
     # 파라미터 missingvalue
     # 일단 column 기준
-    @app.route('/preprocessing/missingvalue', methods=['GET'])
+    @bp_preprocessing.route('/missingvalue', methods=['GET'])
     def missing_value():
         payload = request.get_json(force=True)
         m_value = payload['m_value']
