@@ -14,9 +14,14 @@ from view import create_endpoints
 def create_app():
     app = Flask(__name__)
 
+    app.config['DEBUG'] = True
+
     app.secret_key = '1dsaidzicoqj1515'
     app.config["SESSION_PERMANENT"] = False
     app.config["SESSION_TYPE"] = "filesystem"
+    app.config['UPLOAD_FOLDER'] = './server'
+    # app.config['MAX_CONTENT_LENGTH']
+    app.config['JSON_AS_ASCII'] = False
 
     Session(app)
     CORS(app)

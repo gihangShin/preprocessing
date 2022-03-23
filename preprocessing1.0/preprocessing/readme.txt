@@ -1,5 +1,7 @@
 비지니스 로직 구현(실질적인 전처리 로직 구현)
 
+url 양식 /directory/<filename>_V<version>_D<dateime>.<extension>
+
 list
     - 작업중
         결측치 ( DB 테이블 연동 X )
@@ -13,10 +15,12 @@ list
             지정값 채우기
                 fill_missing_value_specified_value(self, input_data, columns=None):
             표준값 채우기
-            중앙값
-                fill_missing_value_median(self, columns):
-            평균값
-                fill_missing_value_mean(self, columns):
+                중앙값
+                    fill_missing_value_median(self, columns):
+                평균값
+                    fill_missing_value_mean(self, columns):
+
+        컬럼 속성 편집
 
     - 미완료
         경과시간계산

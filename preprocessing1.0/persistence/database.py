@@ -8,7 +8,7 @@ class Database:
                               password='1234',
                               port=5432)
 
-        self.cursor = db.cursor()
+        self.cursor = self.db.cursor()
 
     def __del__(self):
         self.db.close()

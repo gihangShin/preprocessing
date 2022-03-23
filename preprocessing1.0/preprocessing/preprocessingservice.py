@@ -1,6 +1,9 @@
 import pandas as pd
 import math
 from flask import session
+from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
 from flask_session import Session
 
 
@@ -16,13 +19,43 @@ class Preprocessing:
         for k in session.keys():
             print(k)
 
+    # dataset 신규 등록만!!
+    # 받아올 수 있는 값 project name, file
+    # 1. file을 server/project01/origin_data/ 저장
+    # 2. file을 불러와서
+    # server/project01/p_data/ <filename>_V<version>_D<dateime>.<extension> 형식 저장
+    def upload_dataset(self, df, file_name, project_name='project01'):
+        # 1. file을 server/project01/origin_data/ 저장
+        project_dir = './server/' + project_name
+        # 서버 폴더 내 프로젝트명으로 된 디렉토리 생성
+        os.makedirs(project_dir + '/origin_data', exist_ok=True)
+        os.makedirs(project_dir + '/p_data', exist_ok=True)
+        # 이후 실제 file 객체 불러올 때
+        # file_name = secure_filename(file.filename)
+        file_name = file_name.split('/')[-1]
+        org_url = project_dir + '/origin_data/' + file_name
+
+        # file.save(org_url)
+        df.to_json(org_url)
+
+        # 2. file을 불러와서
+        # server/project01/p_data/ <filename>_V<version>_D<dateime>.<extension> 형식 저장
+
+        file_name, version, date, extension = self.split_url(org_url)
+        if extension == 'json':
+            df = pd.read_json(org_url)
+        elif extension == 'csv':
+            df = pd.read_csv(org_url)
+        new_url = project_dir + '/p_data/' + file_name + '_V' + str(round(version,2)) + '_D' + date + '.' + extension
+        df.to_json(new_url)
+
     # httpie 사용 시 session 유지 X 초기화됨
     # http -v --admin [method] url
     # 원래 파일 이름, DB에서 가져와야함
     # 원본파일은 버전이 없음 -> 버전정보 나중에 구현
-    def load_df_from_directory(self, url='./preprocessing/data/sampled_train.csv'):
-        # file_name, version, extension = self.split_url(url)
-        file_name, extension = self.split_url(url)
+    def load_df_from_directory(self, url='./data/origin_data/sampledtrain.csv', method='minor'):
+        file_name, version, date, extension = self.split_url(url)
+        # file_name, extension = self.split_url(url)
         if extension == 'json':
             df = pd.read_json(url)
         if extension == 'csv':
@@ -30,21 +63,47 @@ class Preprocessing:
         self.save_df_in_session(df)
         session['current_df'] = df.to_dict('list')
         session['current_filename'] = file_name
-        # session['current_version'] = version
+        session['current_version'] = version
         session['extension'] = extension
+        # 파일을 읽어보고 version == 1.00 -> 첫 데이터
+        if version == 1.00:
+            self.save_df_in_directory(method='first')
+        else:
+            # minor, major upgrade 설정
+            self.save_df_in_directory(method=method)
         self.print_session_keys()
 
-    # 버전 정보 X
+    # url 양식 /directory/<filename>_V<version>_D<dateime>.<extension>
+    # input test : /directory/sampledtrain_V1.00_20220323.csv
     def split_url(self, url):
-        full_name = url.split('/')[-1]
-        file_name_version = full_name.split('.')[0]
-        extension = full_name.split('.')[1]
+        full_url = url.split('/')[-1]
+        file_name = '.'.join(full_url.split('.')[:-1])
+        extension = full_url.split('.')[-1]
 
-        split_array = file_name_version.split('_')
-        file_name = split_array[:len(split_array) - 2]
-        version = split_array[len(split_array) - 1]
-        # return (file_name, version, extension)
-        return file_name_version, extension
+        # 처음 들어오는 데이터셋인지 확인(filename 양식으로 확인)
+        # 이후 db에서 값을 가져와서 확인도 가능
+        if '_D' in file_name and '_V' in file_name:
+            # 기존 파일 일 때
+            # 날짜정보 _D 로 구분 추출
+            split_date = file_name.split('_D')
+            f_date = split_date[-1]
+            split_array = split_date[0].split('_V')
+            file_name = split_array[0]
+            version = float(split_array[1])
+        else:
+            # 신규 등록하는 데이터 셋일 때
+            version = 1.00
+            f_date = datetime.today().strftime('%Y%m%d')
+        print('filename')
+        print(file_name)
+        print('version')
+        print('%.2f' % version)
+        print('datetime')
+        print(f_date)
+        print('extension')
+        print(extension)
+        return file_name, version, f_date, extension
+        # return file_name_version, extension
 
     # type = (originfile, preprocessed)
     # 업로드는 나중에
@@ -64,26 +123,30 @@ class Preprocessing:
 
     # method major 버전 증가 ex 1.05 -> 2.00
     # method minor 버전 증가 ex 2.04 -> 2.05
-    # 임의 설정 파일 명 ./directory/pdata/<filename>_<version>.(csv, json)
+    # 임의 설정 파일 명 ./data/server_data/<filename>_V<version>.(csv, json)
     def save_df_in_directory(self, method='minor'):
         patch = 0.01
-        df = session['current_df']
+        df = self.get_df_from_session()
         file_name = session['current_filename']
-        org_version = float(session['current_version'])
-        version = 0.0
-        if method == 'minor':
-            version = org_version + patch
+        if method == 'first':
+            version = 1.00
         else:
-            version = math.floor(org_version) + 1
+            org_version = float(session['current_version'])
+            version = 0.00
+            if method == 'minor':
+                version = org_version + patch
+            elif method == 'major':
+                version = math.floor(org_version) + 1
+
         version = format(version, '.2f')
 
-        url = './preprocessing/pdata/' + file_name + '_' + version + '.json'
-        df.to_json(url)
+        url = './data/server_data/' + file_name + '_V' + version + '.json'
+        df.to_json(url, force_ascii=False)
 
     # def __init__(self, app, url)
     # url db에서 정보 불러오기
     # def __init__(self, app):
-    # df = pd.read_csv('./preprocessing/data/sampled_train.csv', sep=',')
+    # df = pd.read_csv('./preprocessing/data/sampledtrain.csv', sep=',')
     # app.dataFrame = df
     # self.app = app
     # self.df = df
@@ -187,7 +250,7 @@ class Preprocessing:
                 s[s < 0] = 0
             # if method == 'delete':
             df[columns] = s
-            df.to_csv('./preprocessing/data/sampled_train_test.csv')
+            df.to_csv('./preprocessing/data/sampledtrain_test.csv')
 
     # 소수점 처리
 
