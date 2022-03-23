@@ -117,8 +117,8 @@ class Preprocessing:
             df = self.fill_missing_value_specified_value(columns=columns, input_data=input_data)
 
         print('missing_value after')
+        self.save_df_in_session(df)  # session에 df 저장
         self.show_df_from_session()
-        self.save_df_in_session(df)
 
     def remove_missing_value(self, columns=None):
         df = self.get_df_from_session()
@@ -132,12 +132,8 @@ class Preprocessing:
     def fill_missing_value_front(self, columns=None):
         df = self.get_df_from_session()
         if columns is None:
-            # 지정한 column이 없을 시 전체 지정 값 채우기
-            print('column is none')
             df = df.fillna(method='ffill', axis=1)
         else:
-            # 지정한 column이 있을 시 해당 열만 지정 값 채우기
-            # columns dtype == 리스트 or 문자열
             df[[columns]] = df[[columns]].ffill()
         return df
 
@@ -145,34 +141,24 @@ class Preprocessing:
     def fill_missing_value_back(self, columns=None):
         df = self.get_df_from_session()
         if columns is None:
-            # 지정한 column이 없을 시 전체 지정 값 채우기
             df = df.fillna(method='bfill', axis=1)
         else:
-            # 지정한 column이 있을 시 해당 열만 지정 값 채우기
-            # columns dtype == 리스트 or 문자열
             df[[columns]] = df[[columns]].bfill()
         return df
 
-    # 지정값 채우기 specified value
     def fill_missing_value_specified_value(self, input_data, columns=None):
         df = self.get_df_from_session()
         if columns is None:
-            # 지정한 column이 없을 시 전체 지정 값 채우기
             df = df.fillna(input_data)
         else:
-            # 지정한 column이 있을 시 해당 열만 지정 값 채우기
             df[[columns]] = df[[columns]].fillna(value=input_data)
         return df
 
-    # 표준값 채우기
-    # 한번에 한 열씩 동작 가정
-    # median
     def fill_missing_value_median(self, columns):
         df = self.get_df_from_session()
         df[columns] = df[columns].fillna(df[columns].median())
         return df
 
-    # mean
     def fill_missing_value_mean(self, columns):
         df = self.get_df_from_session()
         df[columns] = df[columns].fillna(df[columns].mean())

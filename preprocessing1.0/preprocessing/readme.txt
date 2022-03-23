@@ -1,48 +1,56 @@
-비지니스 로직 구현
+비지니스 로직 구현(실질적인 전처리 로직 구현)
 
-# httpie -v --admin [method] url
+list
+    - 작업중
+        결측치 ( DB 테이블 연동 X )
+        missing_value(self, missing_value, columns=None, input_data=None):
+            결측치 삭제
+                remove_missing_value(self, columns=None)
+            이전값 채우기
+                fill_missing_value_front(self, columns=None):
+            다음값 채우기
+                fill_missing_value_back(self, columns=None):
+            지정값 채우기
+                fill_missing_value_specified_value(self, input_data, columns=None):
+            표준값 채우기
+            중앙값
+                fill_missing_value_median(self, columns):
+            평균값
+                fill_missing_value_mean(self, columns):
 
+    - 미완료
+        경과시간계산
+        날짜형식변환
+        날짜부분추출
+        연산
+        수식 비교
 
+        소문자로 변환
+        첫문자 대문자로 변환
+        대문자로 변환
 
-실질적인 전처리 로직 구현
+        컬럼삭제
+        지정값 일치 삭제
+        유효하지 않은 데이터 삭제
+        음수값 삭제
 
+        결측치 삭제
+        이전값 채우기
+        다음값 채우기
+        지정값 채우기
+        표준값 채우기
+        결측 수식적용
+        결측 모델 적용
 
-경과시간계산
-날짜형식변환
-날짜부분추출
-연산
-수식 비교
+        IQR규칙적용 추출
+        밀도기반 추출
+        군집기반 추출
+        입력값 적용
 
-소문자로 변환
-첫문자 대문자로 변환
-대문자로 변환
+        음수값 처리
+        소수점 처리
 
+        사용자 입력값 편집
 
-컬럼삭제
-지정값 일치 삭제
-유효하지 않은 데이터 삭제
-음수값 삭제
-
-
-결측치 삭제
-이전값 채우기
-다음값 채우기
-지정값 채우기
-표준값 채우기
-결측 수식적용
-결측 모델 적용
-
-
-IQR규칙적용 추출
-밀도기반 추출
-군집기반 추출
-입력값 적용
-
-음수값 처리
-소수점 처리
-
-사용자 입력값 편집
-
-
-작업스텝 조회
-작업규칙 저장
+        작업스텝 조회
+        작업규칙 저장

@@ -5,8 +5,6 @@ from flask_session import Session
 from preprocessing import preprocessingservice
 from view import create_endpoints
 
-__name__ = "__main__"
-
 
 # session -> 권한 정보 저장 -> 데이터 접근 권한 ( 서버단에서 처리??)
 #         -> 현재 처리중인 DataFrame 정보 저장 ( 매번 데이터를 저장할 순 없음.)
@@ -26,6 +24,7 @@ def create_app():
         app.run(debug=True)
     # preprocessing 전처리 (service)
     pre_service = preprocessingservice.Preprocessing(app)
+    #profiling_service = <>.class(app)
 
     # 엔드포인트 생성
     create_endpoints(app, pre_service)
