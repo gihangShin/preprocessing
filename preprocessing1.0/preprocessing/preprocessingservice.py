@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import math
 from flask import session
@@ -8,11 +10,14 @@ from flask_session import Session
 
 
 class Preprocessing:
-    app = None
-    df = None
+    target_id_seq = 1;
 
-    def __init__(self, app):
+    def __init__(self, app, database):
         self.app = app
+        self.db = database
+
+    def insert_test(self, payload):
+        self.db.insert_test(payload)
 
     # 세션 정보 확인용
     def print_session_keys(self):
@@ -20,33 +25,27 @@ class Preprocessing:
             print(k)
 
     # dataset 신규 등록만!!
-    # 받아올 수 있는 값 project name, file
     # 1. file을 server/project01/origin_data/ 저장
     # 2. file을 불러와서
     # server/project01/p_data/ <filename>_V<version>_D<dateime>.<extension> 형식 저장
     def upload_dataset(self, df, file_name, project_name='project01'):
         # 1. file을 server/project01/origin_data/ 저장
         project_dir = './server/' + project_name
-        # 서버 폴더 내 프로젝트명으로 된 디렉토리 생성
         os.makedirs(project_dir + '/origin_data', exist_ok=True)
         os.makedirs(project_dir + '/p_data', exist_ok=True)
-        # 이후 실제 file 객체 불러올 때
-        # file_name = secure_filename(file.filename)
         file_name = file_name.split('/')[-1]
         org_url = project_dir + '/origin_data/' + file_name
 
-        # file.save(org_url)
         df.to_json(org_url)
 
         # 2. file을 불러와서
         # server/project01/p_data/ <filename>_V<version>_D<dateime>.<extension> 형식 저장
-
         file_name, version, date, extension = self.split_url(org_url)
         if extension == 'json':
             df = pd.read_json(org_url)
         elif extension == 'csv':
             df = pd.read_csv(org_url)
-        new_url = project_dir + '/p_data/' + file_name + '_V' + str(round(version,2)) + '_D' + date + '.' + extension
+        new_url = project_dir + '/p_data/' + file_name + '_V' + str(round(version, 2)) + '_D' + date + '.' + extension
         df.to_json(new_url)
 
     # httpie 사용 시 session 유지 X 초기화됨
@@ -80,34 +79,19 @@ class Preprocessing:
         file_name = '.'.join(full_url.split('.')[:-1])
         extension = full_url.split('.')[-1]
 
-        # 처음 들어오는 데이터셋인지 확인(filename 양식으로 확인)
-        # 이후 db에서 값을 가져와서 확인도 가능
         if '_D' in file_name and '_V' in file_name:
-            # 기존 파일 일 때
-            # 날짜정보 _D 로 구분 추출
             split_date = file_name.split('_D')
+            split_version = split_date[0].split('_V')
+
+            file_name = split_version[0]
             f_date = split_date[-1]
-            split_array = split_date[0].split('_V')
-            file_name = split_array[0]
-            version = float(split_array[1])
+            version = float(split_version[1])
         else:
             # 신규 등록하는 데이터 셋일 때
             version = 1.00
             f_date = datetime.today().strftime('%Y%m%d')
-        print('filename')
-        print(file_name)
-        print('version')
-        print('%.2f' % version)
-        print('datetime')
-        print(f_date)
-        print('extension')
-        print(extension)
-        return file_name, version, f_date, extension
-        # return file_name_version, extension
 
-    # type = (originfile, preprocessed)
-    # 업로드는 나중에
-    # def upload_dataset_to_server_directory(self, url):
+        return file_name, version, f_date, extension
 
     def show_df_from_session(self):
         df = self.get_df_from_session()
@@ -143,14 +127,6 @@ class Preprocessing:
         url = './data/server_data/' + file_name + '_V' + version + '.json'
         df.to_json(url, force_ascii=False)
 
-    # def __init__(self, app, url)
-    # url db에서 정보 불러오기
-    # def __init__(self, app):
-    # df = pd.read_csv('./preprocessing/data/sampledtrain.csv', sep=',')
-    # app.dataFrame = df
-    # self.app = app
-    # self.df = df
-
     # 예외처리는 일단 나중으로 미루자
 
     # 데이터 처리
@@ -164,6 +140,7 @@ class Preprocessing:
         # missing_value
         print('missing_value before')
         self.show_df_from_session()
+
         if missing_value == 'remove':  # ok
             df = self.remove_missing_value(columns=columns)
         elif missing_value == 'mean':  # ok
@@ -174,7 +151,7 @@ class Preprocessing:
             df = self.fill_missing_value_front(col=columns)
         elif missing_value == 'bfill':  # ok
             df = self.fill_missing_value_back(columns=columns)
-        elif missing_value == 'first_row':
+        elif missing_value == 'first_row':  # 미구현
             df = self.fill_missing_value_first_row()
         elif missing_value == 'input':  # ok
             df = self.fill_missing_value_specified_value(columns=columns, input_data=input_data)
@@ -182,6 +159,27 @@ class Preprocessing:
         print('missing_value after')
         self.save_df_in_session(df)  # session에 df 저장
         self.show_df_from_session()
+
+        # 작업 내용
+        # 사용한 함수,
+        content = {
+            'function': 'missing_value',
+            'selected_column': columns
+        }
+        jcontent = json.dumps(content)
+        session['current_version'] = float(session['current_version']) + 0.01
+        #
+        target_id = 'admin' + str(self.target_id_seq)
+        self.target_id_seq = self.target_id_seq+1
+        dataset = {
+            'target_id': target_id,
+            'version': session['current_version'],
+            'name': 'testname',
+            'content': jcontent
+        }
+        # dataset = json.dumps(dataset)
+        print(dataset)
+        self.db.insert_dataset(dataset=dataset)
 
     def remove_missing_value(self, columns=None):
         df = self.get_df_from_session()
@@ -274,18 +272,8 @@ class Preprocessing:
 
     # 팝업창에서 데이터셋 검색 시 호출 -> 조회
     # /profile/{projectId}/data
-    # GET
-    # 데이터셋 검색
     # pathparameter : projectid
     # bodyparameter : currentDatasetId, datasetName
-    ## 데이터셋을 db에서 호출??
-    ## 서버 내 가공파일 호출???
-    # json 타입으로 리턴
-    # request.json을 그냥 받아오는게 깔끔할지도
-    def showDataset(self, projectId, currentDatasetId, datasetName):
-        url = './preprocessing/' + projectId + '/data/' + datasetName
-        df = pd.read_csv(url, sep=',')
-        return df
 
     # 테이블 작업 - 삭제 - 비어있는 모든 행
     # 모든 컬럼의 데이터가 비어 있는 행을 삭제 처리한다.

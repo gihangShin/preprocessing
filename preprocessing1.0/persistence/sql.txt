@@ -1,0 +1,13 @@
+-- dataset -> 작업 내역 기록 테이블
+-- 수정 2022-03-24
+create table dataset(
+	target_id varchar(10) primary key,
+	version numeric(4,2),				-- 실수형 numeric(최대 자리수, 소수점 이하 자리수)
+	job_id varchar(10) default 'admin',
+	seq serial , 						-- autoincreament 기능 수행
+	job_request_user_id varchar(20) default 'request_user',
+	name varchar(100),
+	content json,						-- json 형식 파일도 받아올 수 있음
+	last_update_datetime timestamp,
+	create_date_time timestamp default current_timestamp
+);

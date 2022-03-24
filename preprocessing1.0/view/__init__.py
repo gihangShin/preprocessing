@@ -5,11 +5,11 @@ import os
 
 
 def create_endpoints(app, service):
-    # 필요하면 encoder
+    # 필요하면 encoding
 
     preprocessing_service = service
 
-    # blueprint 도메인 나누기
+    # blueprint
     # preprocessing
     bp_preprocessing = Blueprint('preprocessing', __name__, url_prefix='/preprocessing')
 
@@ -17,71 +17,54 @@ def create_endpoints(app, service):
     # bp_profiling = Blueprint('profiling', __name__, url_prefix='/profiling')
     # app.register_blueprint(bp_profiling)
 
-    # 결측치 처리
-    # /preprecessing/missingvalue
-    # 파라미터 m_value
-    # 일단 column 기준
-    # Response Parameter -> DB에 저장할 값들
-    # jobId
-    # jobs
-    # targetColumns
-    # dataTarget
-
     @app.route('/', methods=['POST', 'GET'])
     def index():
-        print('111111111111111111111111111')
+        print('endpoint 확인')
         print(app.url_map)
+        # payload = request.get_json(force=True)
         preprocessing_service.load_df_from_directory()
-        preprocessing_service.save_df_in_directory()
-        return render_template("index.html")
+        preprocessing_service.get_df_from_session()
+        # preprocessing_service.insert_test(payload=payload)
+        return '1234'
 
     @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
     def missing_value():
         payload = request.get_json(force=True)
+        print('missing_value')
         print(payload)
         m_value = payload['m_value']
         if 'columns' in payload:
-            print('==1==')
-            columns = payload['columns']  # 단일 str객체 ? 배열 객체?
-            print('colunm')
-            print(columns)
+            columns = payload['columns']
             if 'input_data' in payload:
-                print('==2==')
                 input_data = payload['input_data']
                 preprocessing_service.missing_value(missing_value=m_value, columns=columns, input_data=input_data)
-                return '성공'
+                return columns + ' 컬럼 내 결측치 지정값(' + input_data + ') 으로 대체'
             else:
-                print('==3==')
                 preprocessing_service.missing_value(missing_value=m_value, columns=columns)
-                return '성공'
+                return str(columns) + ' 컬럼 ' + str(missing_value) + ' 동작 수행'
         elif 'columns' not in request.args:
-            print('==14==')
             preprocessing_service.missing_value(missing_value=m_value)
-        return '성공'
+        return '컬럼 값 X / ' + missing_value + ' 동작 수행'
 
     # 관리자 권한
     # 프로젝트+데이터셋(로컬) 등록
     # 데이터셋을 데이터 서버로 업로드
-    # 받는 파라미터
-    #   projectName string
-    #   filename    file    (?) 일단 알아서
     @app.route('/project', methods=['POST'])
     def project_upload():
         payload = request.get_json(force=True)
         project_name = payload['projectname']
         file_name = payload['filename']
-        print(request.files)
-        if 'dataset' not in payload:
-            print('No file part')
-            return '1234'
 
         df = pd.read_json(payload['dataset'])
         print(df.head())
 
-        # upload_file.save(os.path.join(ROOT_PATH, upload_file.filename))
-        # print(upload_file.filename)
-        # save_originfile_in_server
         preprocessing_service.upload_dataset(df, file_name, project_name=project_name)
+        return '1234'
+
+    # 테스트용으로 불러오기도 만들어야함
+    @app.route('/project/load', methods=['POST'])
+    def project_load():
+
         return '1234'
 
     @app.route('/load_df_from_directory', methods=['GET'])
@@ -117,4 +100,5 @@ def create_endpoints(app, service):
             return text
 
     # blueprint 등록
+    # 밑에서 설정해야 동작 왜?
     app.register_blueprint(bp_preprocessing)
