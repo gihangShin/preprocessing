@@ -1,9 +1,5 @@
 import json
 
-import psycopg2
-from sqlalchemy import text
-
-
 class DatasetDao:
 
     def __init__(self, db):

@@ -30,21 +30,21 @@ def create_endpoints(app, service):
     @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
     def missing_value():
         payload = request.get_json(force=True)
-        print('missing_value')
-        print(payload)
         m_value = payload['m_value']
-        if 'columns' in payload:
-            columns = payload['columns']
-            if 'input_data' in payload:
-                input_data = payload['input_data']
-                preprocessing_service.missing_value(missing_value=m_value, columns=columns, input_data=input_data)
-                return columns + ' 컬럼 내 결측치 지정값(' + input_data + ') 으로 대체'
-            else:
-                preprocessing_service.missing_value(missing_value=m_value, columns=columns)
-                return str(columns) + ' 컬럼 ' + str(missing_value) + ' 동작 수행'
+        columns = payload['columns']
+        print(columns)
+        if 'columns' in payload and 'input_data' in payload:
+            input_data = payload['input_data']
+            preprocessing_service.missing_value(missing_value=m_value, columns=columns, input_data=input_data)
+            return '1234'
+
+        elif 'columns' in payload and 'input_data' not in payload:
+            preprocessing_service.missing_value(missing_value=m_value, columns=columns)
+            return '1234'
+
         elif 'columns' not in request.args:
             preprocessing_service.missing_value(missing_value=m_value)
-        return '컬럼 값 X / ' + missing_value + ' 동작 수행'
+        return '1234'
 
     # 관리자 권한
     # 프로젝트+데이터셋(로컬) 등록
