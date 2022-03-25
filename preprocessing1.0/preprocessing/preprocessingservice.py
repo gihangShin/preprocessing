@@ -15,13 +15,37 @@ class Preprocessing:
         self.app = app
         self.db = database
 
+    # 확인용
+    def show_dataset_all(self):
+        dataset = self.db.select_dataset()
+
     def insert_test(self, payload):
         self.db.insert_test(payload)
 
     # 세션 정보 확인용
     def print_session_keys(self):
-        for k in session.keys():
+        for k in session.values():
             print(k)
+
+    def move_job_history(self, payload):
+        result_set = self.get_dataset_jobs_in_session(payload=payload)
+        version = payload['version']
+        seq = payload['seq']
+        # session에 버전에 맞는 데이터셋 저장
+        self.load_df_from_server(version)
+
+        for row in result_set:
+            job_id = row['job_id']
+            content = row['content']
+            row = 0
+            print(row)
+            self.redo_jobs(job_id=job_id, content=content)
+
+    def redo_jobs(self, job_id, content):
+        if job_id == 'missing_value':
+            self.missing_value(content)
+        elif job_id == 'delete_column':
+            self.delete_column(content)
 
     # dataset 신규 등록만!!
     # 1. file을 server/project01/origin_data/ 저장
@@ -51,7 +75,7 @@ class Preprocessing:
     # http -v --admin [method] url
     # 원래 파일 이름, DB에서 가져와야함
     # 테스트용~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    def load_df_from_directory(self, url='./data/origin_data/sampledtrain.csv', method='minor'):
+    def load_df_from_directory(self, url='./server/project01/origin_data/sampledtrain.json', method='minor'):
         project_name, file_name, version, date, extension = self.split_url(url)
 
         if extension == 'json':
@@ -66,6 +90,18 @@ class Preprocessing:
         session['extension'] = extension
         # minor, major upgrade 설정
         self.print_session_keys()
+
+    def load_df_from_server(self, version):
+        url = './server/'
+        url += session['project_name']
+        url += '/p_data/'
+        url += session['current_filename']
+        url += '_V' + version + '.json'
+        print(url)
+        df = pd.read_json(url)
+
+        session['current_df'] = df.to_dict('list')
+        session['current_version'] = version
 
     # url 양식 /directory/<filename>_V<version>_D<dateime>.<extension>
     # input test : /directory/sampledtrain_V1.00_20220323.csv
@@ -89,6 +125,17 @@ class Preprocessing:
 
         return project_name, file_name, version, f_date, extension
 
+    def get_dataset_jobs_in_session(self, payload):
+        file_name = session['current_filename']
+        version = payload['version']
+        seq = payload['seq']
+        result_set = self.db.select_dataset_jobs(file_name=file_name,
+                                                 version=version,
+                                                 seq=seq)
+        for r in result_set:
+            print(r)
+        return result_set
+
     def show_df_from_session(self):
         df = self.get_df_from_session()
         print(df.head())
@@ -110,8 +157,8 @@ class Preprocessing:
         df = self.get_df_from_session()
         file_name = session['current_filename']
         org_version = float(session['current_version'])
-        #project_name = session['project_name']
-        project_name='project01'
+        # project_name = session['project_name']
+        project_name = 'project01'
         date = datetime.today().strftime('%Y%m%d')
         version = 0.00
         if method == 'minor':
@@ -121,25 +168,29 @@ class Preprocessing:
 
         version = format(version, '.2f')
         session['current_version'] = version
-        url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '_D' + date + '.json'
+        # url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '_D' + date + '.json'
+        url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '.json'
 
-        #url = './data/server_data/' + file_name + '_V' + version + '.json'
+        # url = './data/server_data/' + file_name + '_V' + version + '.json'
         df.to_json(url, force_ascii=False)
 
     # 예외처리는 일단 나중으로 미루자
 
-    # 데이터 처리
-    # 결측치 삭제 행, 열
-    # axis = 0 -> 행 삭제
-    # axis = 1 -> 열 삭제
+    # 열 삭제
+    def delete_column(self, payload):
+        column_name = payload['column']
+        self.app.logger.info('delete_column' + column_name)
+        df = self.get_df_from_session()
+        df = df.drop([column_name], axis=1)
+        self.save_df_in_session(df)
+        self.insert_dataset(payload, job_id='delete_column')
 
     # columns -> 파라미터
     # 열 연산만
-    def missing_value(self, missing_value, columns=None, input_data=None):
-        # missing_value
-        print('missing_value before')
-        self.show_df_from_session()
-
+    def missing_value(self, payload):
+        missing_value = payload['m_value']
+        columns = payload['columns']
+        self.app.logger.info('missing value'+columns)
         if missing_value == 'remove':  # ok
             df = self.remove_missing_value(columns=columns)
         elif missing_value == 'mean':  # ok
@@ -153,30 +204,24 @@ class Preprocessing:
         elif missing_value == 'first_row':  # 미구현
             df = self.fill_missing_value_first_row()
         elif missing_value == 'input':  # ok
+            input_data = payload['input_data']
             df = self.fill_missing_value_specified_value(columns=columns, input_data=input_data)
 
         self.save_df_in_session(df)  # session에 df만 저장
+        self.insert_dataset(payload=payload, job_id='missing_value')
 
-        self.insert_dataset(job='missing_data', column=columns)
-        print('missing_value after')
-        self.show_df_from_session()
-
-    def insert_dataset(self, job, column, method='minor'):
-        # 작업 내용
+    def insert_dataset(self, payload, job_id):
+        # 작업 내용 dataset Table insert
         # 사용한 함수,
-        content = {
-            'function': job,
-            'selected_column': column
-        }
-        jcontent = json.dumps(content)
-        self.save_df_in_server(method=method)
+        jcontent = json.dumps(payload)
         # id 정보, name 정보 = app 이나 database에서 가져오기 예상됨
         target_id = 'admin' + str(random.randint(100, 300))
 
         dataset = {
             'target_id': target_id,
             'version': session['current_version'],
-            'name': 'testname',
+            'name': session['current_filename'],
+            'job_id': job_id,
             'content': jcontent
         }
 

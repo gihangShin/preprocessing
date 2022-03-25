@@ -29,8 +29,7 @@ def create_app():
     CORS(app)
 
     db = create_engine(app.config['DB_URL'])
-    dsDAO = datasetDAO.DatasetDao(db)
-
+    dsDAO = datasetDAO.DatasetDao(db, app)
     # preprocessing 전처리 (service)
     pre_service = preprocessingservice.Preprocessing(app, database=dsDAO)
     # profiling_service = <>.class(app)

@@ -17,6 +17,11 @@ def create_endpoints(app, service):
     # bp_profiling = Blueprint('profiling', __name__, url_prefix='/profiling')
     # app.register_blueprint(bp_profiling)
 
+    @app.route('/show_current_df', methods=['POST', 'GET'])
+    def show_current_df():
+        preprocessing_service.show_df_from_session()
+        return '1234'
+
     @app.route('/', methods=['POST', 'GET'])
     def index():
         print('endpoint 확인')
@@ -24,26 +29,37 @@ def create_endpoints(app, service):
         # payload = request.get_json(force=True)
         preprocessing_service.load_df_from_directory()
         preprocessing_service.get_df_from_session()
+        preprocessing_service.show_dataset_all()
         # preprocessing_service.insert_test(payload=payload)
+        return '1234'
+
+    @app.route('/save_df', methods=['POST', 'GET'])
+    def save_df():
+        preprocessing_service.save_df_in_server()
+        return '1234'
+
+    @app.route('/get_dataset_all', methods=['POST', 'GET'])
+    def get_dataset_all():
+        preprocessing_service.get_dataset_jobs_in_session()
+        return '1234'
+
+    @app.route('/move_job_history', methods=['POST', 'GET'])
+    def get_dataset():
+        payload = request.get_json(force=True)
+        # payload [ version, seq ]
+        preprocessing_service.move_job_history(payload=payload)
         return '1234'
 
     @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
     def missing_value():
         payload = request.get_json(force=True)
-        m_value = payload['m_value']
-        columns = payload['columns']
-        print(columns)
-        if 'columns' in payload and 'input_data' in payload:
-            input_data = payload['input_data']
-            preprocessing_service.missing_value(missing_value=m_value, columns=columns, input_data=input_data)
-            return '1234'
+        preprocessing_service.missing_value(payload=payload)
+        return '1234'
 
-        elif 'columns' in payload and 'input_data' not in payload:
-            preprocessing_service.missing_value(missing_value=m_value, columns=columns)
-            return '1234'
-
-        elif 'columns' not in request.args:
-            preprocessing_service.missing_value(missing_value=m_value)
+    @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
+    def delete_column():
+        payload = request.get_json(force=True)
+        preprocessing_service.delete_column(payload=payload)
         return '1234'
 
     # 관리자 권한
@@ -83,22 +99,7 @@ def create_endpoints(app, service):
         preprocessing_service.preprocessing_negative_value(columns=column)
         return '1234'
 
-    ##############################################################################
-    ## 세션 동작 확인용
-    @app.route('/set_session', methods=['GET'])
-    def set_session():
-        session['test'] = 'test1234'
-        text = session['test']
-        return text
-
-    @app.route('/test_session', methods=['GET'])
-    def test_session():
-        if 'test' not in session.keys():
-            return 'test is None'
-        else:
-            text = session['test']
-            return text
-
     # blueprint 등록
     # 밑에서 설정해야 동작 왜?
+
     app.register_blueprint(bp_preprocessing)
