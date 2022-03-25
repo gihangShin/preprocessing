@@ -29,7 +29,6 @@ def create_endpoints(app, service):
         # payload = request.get_json(force=True)
         preprocessing_service.load_df_from_directory()
         preprocessing_service.get_df_from_session()
-        preprocessing_service.show_dataset_all()
         # preprocessing_service.insert_test(payload=payload)
         return '1234'
 

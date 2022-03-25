@@ -24,7 +24,7 @@ class Preprocessing:
 
     # 세션 정보 확인용
     def print_session_keys(self):
-        for k in session.values():
+        for k in session.keys():
             print(k)
 
     def move_job_history(self, payload):
@@ -38,7 +38,7 @@ class Preprocessing:
             job_id = row['job_id']
             content = row['content']
             row = 0
-            print(row)
+            self.app.logger.info('redo action ' + str(job_id) + ' / ' + str(content))
             self.redo_jobs(job_id=job_id, content=content)
 
     def redo_jobs(self, job_id, content):
@@ -100,6 +100,7 @@ class Preprocessing:
         print(url)
         df = pd.read_json(url)
 
+        self.app.logger.info('load_df_from_server / url = ' + url)
         session['current_df'] = df.to_dict('list')
         session['current_version'] = version
 
@@ -138,7 +139,7 @@ class Preprocessing:
 
     def show_df_from_session(self):
         df = self.get_df_from_session()
-        print(df.head())
+        self.app.logger.info('session_dataframe\n' + df.head())
 
     def get_df_from_session(self):
         dict_obj = session['current_df']
@@ -153,7 +154,7 @@ class Preprocessing:
     # 임의 설정 파일 명 ./server/<projectname>/p_date/<filename>_V<version>.(csv, json)
     def save_df_in_server(self, df=None, method='minor'):
         patch = 0.01
-        print('save_df_in_server==========================================')
+
         df = self.get_df_from_session()
         file_name = session['current_filename']
         org_version = float(session['current_version'])
@@ -168,6 +169,7 @@ class Preprocessing:
 
         version = format(version, '.2f')
         session['current_version'] = version
+        self.app.logger.info('save_df_in_server version: ' + version)
         # url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '_D' + date + '.json'
         url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '.json'
 
@@ -179,7 +181,7 @@ class Preprocessing:
     # 열 삭제
     def delete_column(self, payload):
         column_name = payload['column']
-        self.app.logger.info('delete_column' + column_name)
+        self.app.logger.info('delete_column / ' + column_name)
         df = self.get_df_from_session()
         df = df.drop([column_name], axis=1)
         self.save_df_in_session(df)
@@ -190,7 +192,7 @@ class Preprocessing:
     def missing_value(self, payload):
         missing_value = payload['m_value']
         columns = payload['columns']
-        self.app.logger.info('missing value'+columns)
+        self.app.logger.info('missing value / ' + str(payload))
         if missing_value == 'remove':  # ok
             df = self.remove_missing_value(columns=columns)
         elif missing_value == 'mean':  # ok
@@ -225,7 +227,6 @@ class Preprocessing:
             'content': jcontent
         }
 
-        print(dataset)
         self.db.insert_dataset(dataset=dataset)
 
     def remove_missing_value(self, columns=None):

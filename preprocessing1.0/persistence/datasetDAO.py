@@ -21,7 +21,6 @@ class DatasetDao:
 
     def insert_dataset(self, dataset):
         self.logger.info('insert data dataset')
-        print(dataset)
 
         sql = "INSERT INTO dataset( target_id, version, job_id, name, content) VALUES("
         sql += "'" + dataset['target_id'] + "', "
@@ -29,7 +28,6 @@ class DatasetDao:
         sql += "'" + dataset['job_id'] + "', "
         sql += "'" + dataset['name'] + "', "
         sql += "'" + dataset['content'] + "') "
-        print(sql)
 
         self.db.execute(sql)
 
@@ -48,7 +46,6 @@ class DatasetDao:
         for row in result:
             result_set.append(dict(row))
 
-        # print(resultset)
         return result_set
 
     def select_dataset_jobs(self, file_name, version, seq):
