@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 
 from preprocessing import preprocessingservice
 from view import create_endpoints
-from persistence import datasetDAO, database
+from persistence import datasetDAO, job_historyDAO
 
 
 # session -> 권한 정보 저장 -> 데이터 접근 권한 ( 서버단에서 처리??)
@@ -30,8 +30,9 @@ def create_app():
 
     db = create_engine(app.config['DB_URL'])
     dsDAO = datasetDAO.DatasetDao(db, app)
+    jobHistoryDAO = job_historyDAO.JobHistoryDao(db, app)
     # preprocessing 전처리 (service)
-    pre_service = preprocessingservice.Preprocessing(app, database=dsDAO)
+    pre_service = preprocessingservice.Preprocessing(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO)
     # profiling_service = <>.class(app)
 
     # 엔드포인트 생성

@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\preprocessing1.0\data\origin_data\sampledtrain.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\preprocessing1.0\preprocessing\data\bank.csv">
           <value>
             <Attribute>

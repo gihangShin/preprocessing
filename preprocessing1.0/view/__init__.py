@@ -17,66 +17,143 @@ def create_endpoints(app, service):
     # bp_profiling = Blueprint('profiling', __name__, url_prefix='/profiling')
     # app.register_blueprint(bp_profiling)
 
-    @app.route('/show_current_df', methods=['POST', 'GET'])
-    def show_current_df():
-        preprocessing_service.show_df_from_session()
+    ###################################################################
+    ###################################################################
+    ###################################################################
+    ###################################################################
+    ###################################################################
+
+    # 1. 파일 접근
+
+    # 1-1. 데이터 업로드(처음 가정) / version == 1.00
+    # 업로드(org, preprocess[version 정보 추가])
+    # return sampled_dataset
+
+    # /project/<project_id>/file
+    @app.route('/project', methods=['POST'])
+    def file_upload():
+        payload = request.get_json(force=True)
+        return preprocessing_service.upload_file_to_server(payload=payload)
+
+    # 1-2. project_name, file_name, version parameter를 통해 load(기존 등록된 데이터 활용)
+    # parameter project_name, file_name, version -> target_file 추출 후 sampled
+    # return sampled_dataset
+
+    @app.route('/project/load', methods=['POST'])
+    def load_existed_file():
+        payload = request.get_json(force=True)
+        return preprocessing_service.load_existed_file(payload=payload)
+
+    # project_name, file_name, version 정보 session 내 보관
+
+    # 1-3-1. sampled_parameter 설정
+    # defualt -> SEQ/ROW/FRT/50
+    # 사용자 설정도 가능
+    # 샘플링 정보는 파일별로 나누는게 나을거같음
+    # 일단 session 내 유지
+
+    @app.route('/set_sampling_parameter', methods=['POST', 'GET'])
+    def set_sampling():
+        payload = request.get_json(force=True)
+        return preprocessing_service.set_sampling_parameter(payload=payload)
+    ###################################################################
+
+    # 2. 전처리 동작
+    # parameter sampled_dataset, job_id, content
+    # DB(job_history) 동작 내용 등록
+    #       - file_name, version, job_id, content
+    # return sampled_dataset
+
+    @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
+    def missing_value():
+        payload = request.get_json(force=True)
+        return preprocessing_service.missing_value(payload=payload)
+
+    @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
+    def delete_column():
+        payload = request.get_json(force=True)
+        return preprocessing_service.delete_column(payload=payload)
+
+    # 미완성
+
+    # 연산 calculating 1안 개선
+    # 기존 dataset default parameter
+    # -> 유지 할 곳이 없어서 이렇게 함
+
+    # 1, 2. UI에서 연산에 활용할 기존 컬럼을 선택 후 request
+    # 파라미터 dataset(sampled), calc_columns(여러개일 시 리스트타입)
+    # return sampled_dataset, calc_dataset(calc_columns)
+    @app.route('/select_calculating_columns', methods=['POST'])
+    def select_calculating_columns():
+        payload = request.get_json(force=True)
+        return preprocessing_service.select_calculating_columns(payload=payload)
+
+    # 3. 연산 기능
+    # 파라미터 calc_dataset, method
+    # method == arithmetic -> column1, column2 or scala, operator
+    #           return 연산 완료+추가된 calc_dataset
+    # method == aggregate, Statistical -> function, column or scala
+    #           return 연산 완료+추가된 calc_dataset
+    # 추가된 column명 -> ex) colA + colB, std(colA)
+    @app.route('/calculating', methods=['POST', 'GET'])
+    def calculating():
+        payload = request.get_json(force=True)
+        return preprocessing_service.calculating_column(payload=payload)
+
+    # 4. 선택한 컬럼 추가하기
+    # 선택한 컬럼 기존 dataset(sampled)에 열 추가
+    # parameter calc_dataset, columns
+    # calc_dataset에서 column 추출 후 sampled_dataset 에 열 추가
+    # DB(job_history) 추가
+    # job_id : calculate
+    # expression : 추출한 column_name ex) "colA + std(colB * colC)"
+    # 이후 redo
+    # return sampled_dataset(열 추가됨)
+
+   ###################################################################
+
+    # 3. 데이터 추출(저장)
+    # parameter file_name, version
+    # DB(job_history) file_name, version 조회 (seq asc)
+    # 조회된 행 의 동작 반복 수행
+    # <file_name>_V<version+0.01>.json 추출
+    # 추출된 파일 정보 DB(Dataset) 추가
+    # @app.route('/project/{projectId}/export/{datasetId}', methods=['POST'])
+    @app.route('/project/export', methods=['POST', 'GET'])
+    def export_project():
+        payload = request.get_json(force=True)
+        preprocessing_service.export_project(payload=payload)
         return '1234'
 
+    #########################################################################
+    #########################################################################
+    #########################################################################
+    #########################################################################
+    #########################################################################
+    # 테스트용
     @app.route('/', methods=['POST', 'GET'])
     def index():
         print('endpoint 확인')
         print(app.url_map)
-        # payload = request.get_json(force=True)
-        preprocessing_service.load_df_from_directory()
-        preprocessing_service.get_df_from_session()
-        # preprocessing_service.insert_test(payload=payload)
-        return '1234'
+        session.clear()
+        return '테스트 /'
 
-    @app.route('/save_df', methods=['POST', 'GET'])
-    def save_df():
-        preprocessing_service.save_df_in_server()
-        return '1234'
+
 
     @app.route('/get_dataset_all', methods=['POST', 'GET'])
     def get_dataset_all():
         preprocessing_service.get_dataset_jobs_in_session()
         return '1234'
 
-    @app.route('/move_job_history', methods=['POST', 'GET'])
-    def get_dataset():
+    @app.route('/redo_job_history', methods=['POST', 'GET'])
+    def redo_job_history():
         payload = request.get_json(force=True)
-        # payload [ version, seq ]
-        preprocessing_service.move_job_history(payload=payload)
+        preprocessing_service.redo_job_history(payload=payload)
+        # return 'org 데이터 가공 처리 후 추출(저장)'
         return '1234'
 
-    @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
-    def missing_value():
-        payload = request.get_json(force=True)
-        preprocessing_service.missing_value(payload=payload)
-        return '1234'
-
-    @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
-    def delete_column():
-        payload = request.get_json(force=True)
-        preprocessing_service.delete_column(payload=payload)
-        return '1234'
-
-    # 관리자 권한
-    # 프로젝트+데이터셋(로컬) 등록
-    # 데이터셋을 데이터 서버로 업로드
-    @app.route('/project', methods=['POST'])
-    def project_upload():
-        payload = request.get_json(force=True)
-        project_name = payload['projectname']
-        file_name = payload['filename']
-
-        df = pd.read_json(payload['dataset'])
-        print(df.head())
-
-        preprocessing_service.upload_dataset(df, file_name, project_name=project_name)
-        return '1234'
-
-    # 테스트용으로 불러오기도 만들어야함
+    # 불러오기
+    # 파라미터 session init
     @app.route('/project/load', methods=['POST'])
     def project_load():
 

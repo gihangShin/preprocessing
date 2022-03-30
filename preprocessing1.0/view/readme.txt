@@ -3,6 +3,11 @@
 
 엔드포인트(mapping)
 
+/project (파일 -> 서버(임시 폴더) 업로드 )
+테스트 코드
+http --session=gihang -v localhost:5000/project projectname=project02 filename=sampledtrain.json dataset=@preprocessing1.0/data/origin_data/sampledtrain.json
+
+
 blueprint 도메인
     preprocessing
         bp_preprocessing = Blueprint('preprocessing', __name__, url_prefix='/preprocessing')

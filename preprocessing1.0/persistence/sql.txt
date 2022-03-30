@@ -1,5 +1,5 @@
--- dataset -> 작업 내역 기록 테이블
--- 수정 2022-03-24
+-- 수정 2022-03-29
+-- dataset -> dataset 저장 기록 테이블
 create table dataset(
 	target_id varchar(10) primary key,
 	version numeric(4,2),				-- 실수형 numeric(최대 자리수, 소수점 이하 자리수)
@@ -11,3 +11,23 @@ create table dataset(
 	last_update_datetime timestamp,
 	create_date_time timestamp default current_timestamp
 );
+
+
+-- Preparation_job_history -> 작업 내역
+create table preparation_job_history(
+	file_id varchar(30), -- file 외래키
+	job_id varchar (30), -- job_info 외래키
+	seq serial primary key,
+	version numeric(4,2), -- 버전정보 -> 파일 로디시 필요
+	job_request_user_id varchar (20),
+	content json,
+	last_update_datetime timestamp,
+	create_date_time timestamp default current_timestamp
+);
+
+테스트에 필요한 컬럼
+file_id
+job_id
+version
+job_request_user_id
+content

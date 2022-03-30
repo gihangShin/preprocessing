@@ -31,6 +31,10 @@ class DatasetDao:
 
         self.db.execute(sql)
 
+    def init_dataset(self):
+        sql = 'DELETE FROM dataset'
+        self.db.execute(sql)
+
     # dataset 조회 전체
     # result_set return 타입 list[dict]
     def select_dataset(self, file_name=None):
