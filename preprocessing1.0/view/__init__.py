@@ -74,6 +74,7 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return preprocessing_service.delete_column(payload=payload)
 
+    # 2-3 작업중
     # 미완성
 
     # 연산 calculating 1안 개선
@@ -83,19 +84,19 @@ def create_endpoints(app, service):
     # 1, 2. UI에서 연산에 활용할 기존 컬럼을 선택 후 request
     # 파라미터 dataset(sampled), calc_columns(여러개일 시 리스트타입)
     # return sampled_dataset, calc_dataset(calc_columns)
-    @app.route('/select_calculating_columns', methods=['POST'])
+    @app.route('/calculate/select_columns', methods=['POST'])
     def select_calculating_columns():
         payload = request.get_json(force=True)
         return preprocessing_service.select_calculating_columns(payload=payload)
 
-    # 3. 연산 기능
+    # 3. 연산 기능 [행 별 연산]
     # 파라미터 calc_dataset, method
-    # method == arithmetic -> column1, column2 or scala, operator
+    # method == arithmetic -> column1, (column2 or scala or 집계 데이터), operator
     #           return 연산 완료+추가된 calc_dataset
-    # method == aggregate, Statistical -> function, column or scala
+    # method == aggregate, Statistical -> function, (column or scala)
     #           return 연산 완료+추가된 calc_dataset
     # 추가된 column명 -> ex) colA + colB, std(colA)
-    @app.route('/calculating', methods=['POST', 'GET'])
+    @app.route('/calculate/calculating', methods=['POST', 'GET'])
     def calculating():
         payload = request.get_json(force=True)
         return preprocessing_service.calculating_column(payload=payload)
@@ -105,8 +106,8 @@ def create_endpoints(app, service):
     # parameter calc_dataset, columns
     # calc_dataset에서 column 추출 후 sampled_dataset 에 열 추가
     # DB(job_history) 추가
-    # job_id : calculate
-    # expression : 추출한 column_name ex) "colA + std(colB * colC)"
+    # ->    job_id : calculate
+    #       expression : 추출한 column_name ex) "colA + std(colB * colC)"
     # 이후 redo
     # return sampled_dataset(열 추가됨)
 

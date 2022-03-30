@@ -22,6 +22,9 @@ class Preprocessing:
     # dataset 신규 등록만!!
     # 1. file을 server/project01/origin_data/ 저장
     # server/project01/p_data/ <filename>_V<version>_D<dateime>.<extension> 형식 저장
+    #############################################
+    # 테스트용 코드 웹단에서 이루어질 예정 == 곧 삭제  #
+    #############################################
     def upload_file_to_server(self, payload):
         project_name = payload['project_name']
         file_name_type = payload['file_name']
@@ -93,6 +96,9 @@ class Preprocessing:
         return df
 
     # 1-3. sampled_parameter 설정
+    #############################################
+    # 테스트용 코드 웹단에서 이루어질 예정 == 곧 삭제  #
+    #############################################
     def set_sampling_parameter(self, payload):
         session['sampling_method'] = payload['sampling_method']
         session['ord_row'] = payload['ord_row']
@@ -115,6 +121,9 @@ class Preprocessing:
             ord_row = 'ROW'
             ord_set = 'FRT'
         else:
+            ########################################
+            # session 말고 DB에서 불러올 예정 수정 필요 #
+            ########################################
             sampling_method = session['sampling_method']
             ord_value = int(session['ord_value'])
             ord_row = session['ord_row']
@@ -254,18 +263,132 @@ class Preprocessing:
         return dataset
 
     # 2-3. 작업 중
-    def calculating_column(self, payload):
-        df = self.get_df_from_session()
-        column_name_to_add = payload['column_name']
-        formula = payload['formula']
+    # calculating
+    def select_calculating_columns(self, payload):
+        df = self.get_df_from_payload(payload)
 
-        formula = str(column_name_to_add) + ' = ' + str(formula)
-        print(formula)
-        df.eval(formula, inplace=True)
-        print(df)
-        self.save_df_in_session(df)
-        self.insert_dataset(payload=payload, job_id='calculating_column')
+        # calc_df == 계산 용 dataset
+        # 그냥 수치형 다 받아옴
+        calc_df = df.select_dtypes(include=['int64', 'float64'])
+
+        response = {
+            'dataset': df.to_json(force_ascii=False),
+            'calc_dataset': calc_df.to_json(force_ascii=False)
+        }
+
+        return json.dumps(response)
+
+    def calculating_column(self, payload):
+        # method == arithmetic -> column1, (column2 or scala or 집계 데이터), operator
+        #           return 연산 완료+추가된 calc_dataset
+        # method == function(aggregate, Statistical) -> function, (column or scala)
+        #           return 연산 완료+추가된 calc_dataset
+        method = payload['method']
+        if method == 'arithmetic':
+            calc_df = self.calc_arithmetic(payload=payload)
+            pass
+        elif method == 'function':
+            calc_df = self.calc_function(payload=payload)
+            pass
+
+        ##########################################################
         return self.sampling_dataset()
+
+    def calc_function(self, payload):
+        calc_df = pd.read_json(payload['calc_dataset'])
+        function = payload['calc_function']
+        columns = payload['columns']
+
+        # 여러 컬럼에서만 동작하는 함수
+        # mean, max, min, median, std, var
+        if function == 'mean':
+            pass
+        elif function == 'max':
+            pass
+        elif function == 'median':
+            pass
+        elif function == 'std':
+            pass
+        elif function == 'var':
+            pass
+
+        # 단일 컬럼에서만 동작하는 함수
+        # sin, cos, abs, log,
+
+        elif function == 'sin':
+            pass
+        elif function == 'cos':
+            pass
+        elif function == 'abs':
+            pass
+        elif function == 'log':
+            pass
+
+
+    # 산술 연산 + - * / %
+    def calc_arithmetic(self, payload):
+        calc_df = pd.read_json(payload['calc_dataset'])
+        operator = payload['operator']
+        column1 = payload['column1']
+        operand1 = calc_df[column1]
+        # 2번 피연산자
+        # 1. column명
+        # 2. 상수
+        # 3. column의 집계함수 값
+        value_type = payload['value_type']
+        if value_type == 'column':
+            column2 = payload['value']
+            operand2 = calc_df[column2]
+        elif value_type == 'column_func':
+            operand2, column2 = self.calc_function_column(payload=payload)
+        elif value_type == 'constant':
+            operand2 = float(payload['value'])
+            column2 = operand2
+
+        if operator == 'add':
+            result = operand1 + operand2
+            operator = '+'
+
+        elif operator == 'min':
+            result = operand1 - operand2
+            operator = '-'
+
+        elif operator == 'mul':
+            result = operand1 * operand2
+            operator = '*'
+
+        elif operator == 'div':
+            result = operand1 / operand2
+            operator = '/'
+
+        elif operator == 'remainder':
+            result = operand1 % operand2
+            operator = '%'
+
+        column_name = column1 + operator + column2
+        calc_df[column_name] = result
+        return calc_df
+
+    def calc_function_column(self, payload):
+        column2 = payload['value']
+        function = payload['column_function']
+        df = self.get_df_from_payload(payload=payload)
+        result = 0
+        if function == 'max':
+            result = df[column2].max(axis=0)
+        elif function == 'min':
+            result = df[column2].min(axis=0)
+        elif function == 'mean':
+            result = df[column2].mean(axis=0)
+        elif function == 'median':
+            result = df[column2].median(axis=0)
+        elif function == 'std':  # 표준편차
+            result = df[column2].std(axis=0)
+        elif function == 'var':  # 분산
+            result = df[column2].var(axis=0)
+
+        column_name = function + '(' + column2 + ')'
+        return result, column_name
 
     def calculating_columns(self, payload):
         df = payload['dataset']
@@ -328,6 +451,10 @@ class Preprocessing:
             version = math.floor(org_version) + 1
 
         version = format(version, '.2f')
+
+        ######################################
+        # session 말고 DB에 저장할 예정 수정 필요 #
+        ######################################
         session['version'] = version
 
         self.app.logger.info('export_project version: ' + version)
@@ -361,10 +488,7 @@ class Preprocessing:
             content['dataset'] = df_json
             df_json = self.redo_jobs(job_id=job_id, content=content)
             df_1 = pd.read_json(df_json)
-            print('------df_json_columns-------')
-            print(df_1.columns)
         df = pd.read_json(df_json)
-        print('33333333333333333333333333333333333333333')
         return df
 
     def redo_jobs(self, job_id, content):
