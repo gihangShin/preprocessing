@@ -159,6 +159,8 @@ class Preprocessing:
     ########################################################################################
 
     # 2. 전처리 동작
+    # view <-> 상위 메서드 에서만 df.to_json() 예정
+    # 상위 <-> 하위 메서드 에선 DataFrame 객체 송수신
 
     # 2-0. 동작 내역 DB 저장 함수
     def insert_job_history(self, payload, job_id):
@@ -175,8 +177,8 @@ class Preprocessing:
 
         self.jhDAO.insert_job_history(job_history=job_history)
 
-    # 2-1. 상위 메서드
-    # 상위 메서드 에서만 df.to_json() 예정
+    # 2-1. 열 삭제
+
     # 열 삭제
     def delete_column(self, payload, redo=False):
         column_name = payload['column']
@@ -191,7 +193,7 @@ class Preprocessing:
             self.insert_job_history(payload, job_id='delete_column')
         return dataset.to_json(force_ascii=False)
 
-    # columns -> 파라미터
+    # 2-2. 결측치 처리
     # 열 연산만
     def missing_value(self, payload, redo=False):
         missing_value = payload['m_value']
@@ -262,69 +264,99 @@ class Preprocessing:
         dataset[columns] = dataset[columns].fillna(dataset[columns].mean())
         return dataset
 
-    # 2-3. 작업 중
-    # calculating
-    def select_calculating_columns(self, payload):
-        df = self.get_df_from_payload(payload)
+    # 2-3. 연산
 
+    # 2-3-1. sampled_dataset 에서 연산용 데이터셋 추출
+    # calculating
+    # 테스트 완료
+    def get_calc_dataset(self, payload, redo=False):
+        df = self.get_df_from_payload(payload)
         # calc_df == 계산 용 dataset
         # 그냥 수치형 다 받아옴
         calc_df = df.select_dtypes(include=['int64', 'float64'])
 
-        response = {
-            'dataset': df.to_json(force_ascii=False),
-            'calc_dataset': calc_df.to_json(force_ascii=False)
-        }
+        if redo is False:
+            return calc_df.to_json
+        else:
+            return calc_df
 
-        return json.dumps(response)
-
-    def calculating_column(self, payload):
+    # 2-3-2. 연산
+    # 테스트 완료
+    def calculating_column(self, payload, redo=False):
         # method == arithmetic -> column1, (column2 or scala or 집계 데이터), operator
         #           return 연산 완료+추가된 calc_dataset
         # method == function(aggregate, Statistical) -> function, (column or scala)
         #           return 연산 완료+추가된 calc_dataset
         method = payload['method']
+
         if method == 'arithmetic':
             calc_df = self.calc_arithmetic(payload=payload)
-            pass
+
         elif method == 'function':
             calc_df = self.calc_function(payload=payload)
-            pass
 
-        ##########################################################
-        return self.sampling_dataset()
 
+
+        if redo is False:
+            result = {
+                'calc_dataset': calc_df.to_json(force_ascii=False)
+            }
+            # DB 저장은 마지막 수행
+            del payload['dataset']
+            del payload['calc_dataset']
+
+            if 'calc_job_history' not in payload:
+                c_j_history = list()
+                c_j_history.append(payload)
+            else:
+                c_j_history = payload['calc_job_history']
+                del payload['calc_job_history']
+                c_j_history.append(payload)
+
+            result['calc_job_history'] = c_j_history
+            return json.dumps(result)
+        else:
+            # 추출 시 반복작업 용
+            return calc_df.to_json(force_ascii=False)
+
+    # 2-3-2-1. 연산 동작(함수 선택 시)
     def calc_function(self, payload):
         calc_df = pd.read_json(payload['calc_dataset'])
         function = payload['calc_function']
         columns = payload['columns']
 
-        # 여러 컬럼에서만 동작하는 함수
+        # 여러 컬럼에서만 동작하는 함수 단일 컬럼 X
         # mean, max, min, median, std, var
         if function == 'mean':
-            pass
+            result = calc_df[[columns]].mean(axis=1)
         elif function == 'max':
-            pass
+            result = calc_df[[columns]].max(axis=1)
+        elif function == 'min':
+            result = calc_df[[columns]].min(axis=1)
         elif function == 'median':
-            pass
+            result = calc_df[[columns]].median(axis=1)
         elif function == 'std':
-            pass
+            result = calc_df[[columns]].std(axis=1)
         elif function == 'var':
-            pass
+            result = calc_df[[columns]].var(axis=1)
 
         # 단일 컬럼에서만 동작하는 함수
         # sin, cos, abs, log,
 
         elif function == 'sin':
-            pass
+            result = np.sin(calc_df[[columns]])
         elif function == 'cos':
-            pass
+            result = np.cos(calc_df[[columns]])
         elif function == 'abs':
-            pass
+            result = np.abs(calc_df[[columns]])
         elif function == 'log':
-            pass
+            result = np.log(calc_df[[columns]])
 
+        column_name = function + '(' + columns + ')'
+        calc_df[column_name] = result
+        return calc_df
 
+    # 2-3-2-2. 연산 동작(산술 연산 선택 시)
     # 산술 연산 + - * / %
     def calc_arithmetic(self, payload):
         calc_df = pd.read_json(payload['calc_dataset'])
@@ -369,6 +401,7 @@ class Preprocessing:
         calc_df[column_name] = result
         return calc_df
 
+    # 2-3-2-2-1. 두번째 피연산자 == 컬럼의 집계값 사용 시
     def calc_function_column(self, payload):
         column2 = payload['value']
         function = payload['column_function']
@@ -390,50 +423,25 @@ class Preprocessing:
         column_name = function + '(' + column2 + ')'
         return result, column_name
 
-    def calculating_columns(self, payload):
-        df = payload['dataset']
-        df = pd.DataFrame(df)
-        column1 = payload['column1']
-        operation = payload['operation']
+    # 2-3-3. calc_dataset 에서 추출할 컬럼 선택 후 기존 데이터셋(sampled_dataset)으로 결합
+    def select_calc_column_to_combine(self, payload, redo=False):
+        selected_columns = payload['selected_columns']
+        calc_dataset = pd.read_json(payload['calc_dataset'])
+        dataset = pd.read_json(payload['dataset'])
 
-        # 컬럼2개 필요한 연산 + - * / %
-        if operation in ['+', '-', '*', '/', '%']:
-            if 'column2' not in payload:
-                return "error occurred(column2 is not exist"
-            column2 = payload['column2']
-            if operation == '+':
-                result = df[column1] + df[column2]
-            elif operation == '-':
-                result = df[column1] + df[column2]
-            elif operation == '*':
-                result = df[column1] + df[column2]
-            elif operation == '/':
-                result = df[column1] + df[column2]
-            elif operation == '%':
-                result = df[column1] + df[column2]
-            result_column = column1 + ' ' + operation + ' ' + column2
-            df[result_column] = result
-        if 'value' in payload:
-            value = payload['payload']
+        if redo is False:
+            # 추출 시 재수행 동작이 아니라면 DB저장
+            job_history = payload['calc_job_history']
+            calc_payload = {
+                'selected_columns': selected_columns,
+                'calc_job_history': job_history  # list[json] 형식
+            }
+            self.insert_job_history(payload=calc_payload, job_id='calc_columns')
 
-        # 컬럼 내
-        if column1 not in df.columns:
-            return "error occurred"
+        result_dataset = calc_dataset[[selected_columns]]
+        dataset = pd.concat([dataset, result_dataset], axis=1)
 
-        # 사칙연산에 필요한 column 2개
-        # 다른 연산은 하나만 있으면 됨
-        if operation == "+":
-            operand1 = df.loc[:, column1].values
-            operand2 = df.loc[:, column2].values
-            result = operand1 + operand2
-
-            pass
-        elif operation == '-':
-            pass
-        elif operation == 'abs':
-            pass
-        elif operation == '':
-            pass
+        return dataset.to_json(force_ascii=False)
 
     # 3. 데이터 추출(저장)
     # parameter file_name, version
@@ -453,7 +461,7 @@ class Preprocessing:
         version = format(version, '.2f')
 
         ######################################
-        # session 말고 DB에 저장할 예정 수정 필요 #
+        # session 말고 DB에 저장 or request 로 받아올 예정 수정 필요 #
         ######################################
         session['version'] = version
 
@@ -496,6 +504,16 @@ class Preprocessing:
             return self.missing_value(content, redo=True)
         elif job_id == 'delete_column':
             return self.delete_column(content, redo=True)
+        elif job_id == 'calc_columns':
+            return self.calc_columns_redo(content)
+
+    def calc_columns_redo(self, content):
+        calc_dataset = self.get_calc_dataset(content)
+        for payload in content['calc_job_history']:
+            payload['calc_dataset'] = calc_dataset.to_json(force_ascii=False)
+            calc_dataset = self.calculating_column(payload, redo=True)
+
+        return self.select_calc_column_to_combine(content, redo=True)
 
     ########################################################################################
     ########################################################################################
@@ -601,7 +619,7 @@ class Preprocessing:
     # DataFrame return
     def get_df_from_payload(self, payload):
         df_json = payload['dataset']
-        df = pd.DataFrame(df_json)
+        df = pd.read_json(df_json)
         return df
 
     # method major 버전 증가 ex 1.05 -> 2.00

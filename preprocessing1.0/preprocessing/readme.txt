@@ -32,6 +32,14 @@ TEST    http --session=gihang -v POST localhost:5000/set_sampling_parameter samp
     #       - file_name, version, job_id, content
     # return sampled_dataset
 
+    연산 동작
+    테스트
+    1.
+    # http --session=gihang -v POST localhost:5000/calculate/get_calc_dataset dataset=@preprocessing1.0/server/project03/origin_data/train_sampled.json
+    2.
+    http --session=gihang -v POST localhost:5000/calculate/calculating dataset=@preprocessing1.0/server/project03/origin_data/train_sampled.json calc_dataset=@preprocessing1.0/server/project03/origin_data/train_calc.json method=function calc_function=sin columns=jibun
+
+
 # 3. 데이터 추출(저장)
     # parameter file_name, version
     # DB(job_history) file_name, version 조회 (seq asc)

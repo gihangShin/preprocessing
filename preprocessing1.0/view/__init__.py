@@ -64,32 +64,36 @@ def create_endpoints(app, service):
     #       - file_name, version, job_id, content
     # return sampled_dataset
 
-    @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
-    def missing_value():
-        payload = request.get_json(force=True)
-        return preprocessing_service.missing_value(payload=payload)
-
+    # 2-1. 열 삭제
     @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
     def delete_column():
         payload = request.get_json(force=True)
         return preprocessing_service.delete_column(payload=payload)
 
-    # 2-3 작업중
-    # 미완성
+    # 2-2. 결측치 처리
+    @bp_preprocessing.route('/missingvalue', methods=['POST', 'GET'])
+    def missing_value():
+        payload = request.get_json(force=True)
+        return preprocessing_service.missing_value(payload=payload)
 
+    # 2-3. 연산
+    # 미완성
     # 연산 calculating 1안 개선
     # 기존 dataset default parameter
     # -> 유지 할 곳이 없어서 이렇게 함
 
-    # 1, 2. UI에서 연산에 활용할 기존 컬럼을 선택 후 request
-    # 파라미터 dataset(sampled), calc_columns(여러개일 시 리스트타입)
-    # return sampled_dataset, calc_dataset(calc_columns)
-    @app.route('/calculate/select_columns', methods=['POST'])
-    def select_calculating_columns():
-        payload = request.get_json(force=True)
-        return preprocessing_service.select_calculating_columns(payload=payload)
+    # 2-3-1. sampled_dataset 에서 연산용 데이터셋 추출
 
-    # 3. 연산 기능 [행 별 연산]
+    # 1, 2. UI에서 연산에 활용할 기존 컬럼을 선택 후 request
+    # 파라미터 dataset(sampled), calc_columns(여러개일 시 리스트타입)  XXXXX
+    # dataset의 테이블 컬럼 중 수치형 항목만 선택
+    # return sampled_dataset, calc_dataset(calc_columns)
+    @app.route('/calculate/get_calc_dataset', methods=['POST'])
+    def get_calc_dataset():
+        payload = request.get_json(force=True)
+        return preprocessing_service.get_calc_dataset(payload=payload)
+
+    # 2-3-2. 연산
     # 파라미터 calc_dataset, method
     # method == arithmetic -> column1, (column2 or scala or 집계 데이터), operator
     #           return 연산 완료+추가된 calc_dataset
@@ -101,7 +105,8 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return preprocessing_service.calculating_column(payload=payload)
 
-    # 4. 선택한 컬럼 추가하기
+    # 2-3-3. calc_dataset 에서 추출할 컬럼 선택 후 기존 데이터셋(sampled_dataset)으로 결합
+    # 선택한 컬럼 추가하기
     # 선택한 컬럼 기존 dataset(sampled)에 열 추가
     # parameter calc_dataset, columns
     # calc_dataset에서 column 추출 후 sampled_dataset 에 열 추가
