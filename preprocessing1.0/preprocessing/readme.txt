@@ -37,7 +37,10 @@ TEST    http --session=gihang -v POST localhost:5000/set_sampling_parameter samp
     1.
     # http --session=gihang -v POST localhost:5000/calculate/get_calc_dataset dataset=@preprocessing1.0/server/project03/origin_data/train_sampled.json
     2.
+    함수 연산
     http --session=gihang -v POST localhost:5000/calculate/calculating dataset=@preprocessing1.0/server/project03/origin_data/train_sampled.json calc_dataset=@preprocessing1.0/server/project03/origin_data/train_calc.json method=function calc_function=sin columns=jibun
+    산술 연산
+    http --session=gihang -v POST localhost:5000/calculate/calculating calc_dataset=@preprocessing1.0/server/project03/origin_data/train_calc.json method=arithmetic operator=add column1=jibun value_type=column value=floor
 
 
 # 3. 데이터 추출(저장)
@@ -49,15 +52,6 @@ TEST    http --session=gihang -v POST localhost:5000/set_sampling_parameter samp
 
 
  http --session=gihang -v POST localhost:5000/project/export file_name=train_sampled project_name=project03 version=1.0
-
-
-
-
-
-
-
-
-
 
 -datetime
 url 양식 /directory/<filename>_V<version>_D<dateime>.<extension>

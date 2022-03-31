@@ -115,7 +115,10 @@ def create_endpoints(app, service):
     #       expression : 추출한 column_name ex) "colA + std(colB * colC)"
     # 이후 redo
     # return sampled_dataset(열 추가됨)
-
+    @app.route('/calculate/select_result_columns', methods=['POST'])
+    def export_result():
+        payload = request.get_json(force=True)
+        return preprocessing_service.select_calc_column_to_combine(payload=payload)
    ###################################################################
 
     # 3. 데이터 추출(저장)

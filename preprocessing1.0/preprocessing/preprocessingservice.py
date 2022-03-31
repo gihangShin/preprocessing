@@ -168,10 +168,10 @@ class Preprocessing:
         target_id = 'admin' + str(random.randint(100, 300))
 
         job_history = {
-            'file_name': session['file_name'],
+            'file_name': payload['file_name'],
             'job_id': job_id,
-            'version': session['version'],
-            'job_request_user_id': 'user123',
+            'version': payload['version'],
+            'job_request_user_id': target_id,
             'content': content_json
         }
 
@@ -276,7 +276,7 @@ class Preprocessing:
         calc_df = df.select_dtypes(include=['int64', 'float64'])
 
         if redo is False:
-            return calc_df.to_json
+            return calc_df.to_json(force_ascii=False)
         else:
             return calc_df
 
@@ -295,14 +295,16 @@ class Preprocessing:
         elif method == 'function':
             calc_df = self.calc_function(payload=payload)
 
-
+        print('calc_df')
+        print(calc_df)
+        print('calc_df.to_json()')
+        print(calc_df.to_json())
 
         if redo is False:
             result = {
-                'calc_dataset': calc_df.to_json(force_ascii=False)
+                'calc_dataset': calc_df.to_dict()
             }
             # DB 저장은 마지막 수행
-            del payload['dataset']
             del payload['calc_dataset']
 
             if 'calc_job_history' not in payload:
@@ -321,7 +323,7 @@ class Preprocessing:
 
     # 2-3-2-1. 연산 동작(함수 선택 시)
     def calc_function(self, payload):
-        calc_df = pd.read_json(payload['calc_dataset'])
+        calc_df = pd.DataFrame(payload['calc_dataset'])
         function = payload['calc_function']
         columns = payload['columns']
 
@@ -359,7 +361,7 @@ class Preprocessing:
     # 2-3-2-2. 연산 동작(산술 연산 선택 시)
     # 산술 연산 + - * / %
     def calc_arithmetic(self, payload):
-        calc_df = pd.read_json(payload['calc_dataset'])
+        calc_df = pd.DataFrame(payload['calc_dataset'])
         operator = payload['operator']
         column1 = payload['column1']
         operand1 = calc_df[column1]
@@ -426,19 +428,21 @@ class Preprocessing:
     # 2-3-3. calc_dataset 에서 추출할 컬럼 선택 후 기존 데이터셋(sampled_dataset)으로 결합
     def select_calc_column_to_combine(self, payload, redo=False):
         selected_columns = payload['selected_columns']
-        calc_dataset = pd.read_json(payload['calc_dataset'])
-        dataset = pd.read_json(payload['dataset'])
+        calc_dataset = pd.DataFrame(payload['calc_dataset'])
+        dataset = pd.DataFrame(payload['dataset'])
 
         if redo is False:
             # 추출 시 재수행 동작이 아니라면 DB저장
             job_history = payload['calc_job_history']
             calc_payload = {
+                'file_name': payload['file_name'],
+                'version': payload['version'],
                 'selected_columns': selected_columns,
                 'calc_job_history': job_history  # list[json] 형식
             }
             self.insert_job_history(payload=calc_payload, job_id='calc_columns')
-
-        result_dataset = calc_dataset[[selected_columns]]
+        print(calc_dataset.head())
+        result_dataset = calc_dataset[selected_columns]
         dataset = pd.concat([dataset, result_dataset], axis=1)
 
         return dataset.to_json(force_ascii=False)
@@ -495,7 +499,6 @@ class Preprocessing:
             self.app.logger.info('redo action ' + str(job_id) + ' / ' + str(content))
             content['dataset'] = df_json
             df_json = self.redo_jobs(job_id=job_id, content=content)
-            df_1 = pd.read_json(df_json)
         df = pd.read_json(df_json)
         return df
 
@@ -619,7 +622,7 @@ class Preprocessing:
     # DataFrame return
     def get_df_from_payload(self, payload):
         df_json = payload['dataset']
-        df = pd.read_json(df_json)
+        df = pd.DataFrame(df_json)
         return df
 
     # method major 버전 증가 ex 1.05 -> 2.00
