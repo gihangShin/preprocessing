@@ -29,6 +29,9 @@ def create_endpoints(app, service):
     # 업로드(org, preprocess[version 정보 추가])
     # return sampled_dataset
 
+    #############################################
+    # 테스트용 코드 웹단에서 이루어질 예정 == 곧 삭제  #
+    #############################################
     # /project/<project_id>/file
     @app.route('/project', methods=['POST'])
     def file_upload():
@@ -52,10 +55,14 @@ def create_endpoints(app, service):
     # 샘플링 정보는 파일별로 나누는게 나을거같음
     # 일단 session 내 유지
 
+    #############################################
+    # 테스트용 코드 웹단에서 이루어질 예정 == 곧 삭제  #
+    #############################################
     @app.route('/set_sampling_parameter', methods=['POST', 'GET'])
     def set_sampling():
         payload = request.get_json(force=True)
         return preprocessing_service.set_sampling_parameter(payload=payload)
+
     ###################################################################
 
     # 2. 전처리 동작
@@ -65,9 +72,12 @@ def create_endpoints(app, service):
     # return sampled_dataset
 
     # 2-1. 열 삭제
-    @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
-    def delete_column():
+    # /profile/{projectId}/data/{datasetId}/col-prop/columns/delete
+    @bp_preprocessing.route('/profile/<project_id>/data/<dataset_id>/col-prop/columns/delete', methods=['POST', 'GET'])
+    def delete_column(project_id, dataset_id):
         payload = request.get_json(force=True)
+        payload['project_id'] = project_id
+        payload['dataset_id'] = dataset_id
         return preprocessing_service.delete_column(payload=payload)
 
     # 2-2. 결측치 처리
@@ -116,10 +126,23 @@ def create_endpoints(app, service):
     # 이후 redo
     # return sampled_dataset(열 추가됨)
     @app.route('/calculate/select_result_columns', methods=['POST'])
-    def export_result():
+    def export_calc_result():
         payload = request.get_json(force=True)
         return preprocessing_service.select_calc_column_to_combine(payload=payload)
-   ###################################################################
+
+    # 2-4. 컬럼 속성 변경
+    # /profile/{projectId}/data/{datasetId}/col-prop/{columnId=id}&{columnName=name}&{type=str}
+    @app.route('/profile/<project_id:str>/data/<dataset_id:str>/col-prop/<column_id:str>&<column_name:str>&<type:str>')
+    def col_prop(project_id, dataset_id, column_id, column_name, type):
+        payload = request.get_json(force=True)
+        payload['project_id'] = project_id
+        payload['dataset_id'] = dataset_id
+        payload['column_id'] = column_id
+        payload['column_name'] = column_name
+        payload['type'] = type
+        return preprocessing_service.col_prop(payload=payload)
+
+    ###################################################################
 
     # 3. 데이터 추출(저장)
     # parameter file_name, version
@@ -131,8 +154,7 @@ def create_endpoints(app, service):
     @app.route('/project/export', methods=['POST', 'GET'])
     def export_project():
         payload = request.get_json(force=True)
-        preprocessing_service.export_project(payload=payload)
-        return '1234'
+        return preprocessing_service.export_project(payload=payload)
 
     #########################################################################
     #########################################################################
@@ -146,8 +168,6 @@ def create_endpoints(app, service):
         print(app.url_map)
         session.clear()
         return '테스트 /'
-
-
 
     @app.route('/get_dataset_all', methods=['POST', 'GET'])
     def get_dataset_all():

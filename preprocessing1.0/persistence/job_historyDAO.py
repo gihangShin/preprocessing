@@ -45,7 +45,7 @@ class JobHistoryDao:
     # return type list[dict]
     def select_job_history_by_file_name_and_version(self, file_name, version):
         sql = "SELECT * FROM preparation_job_history"
-        sql += " where file_id='" + file_name + "' AND version=" + version
+        sql += " where file_id='" + file_name + "' AND version=" + str(round(version,2))
         sql += " order by seq ASC"
         self.logger.info('execute sql -> ' + sql)
         result = self.db.execute(sql)
