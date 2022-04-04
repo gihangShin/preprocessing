@@ -2,7 +2,7 @@ import json
 import math
 import os
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import numpy as np
@@ -65,6 +65,7 @@ class Preprocessing:
 
         df = self.load_org_file(payload=payload)
         df_dtypes = self.get_dtype_of_dataframe(df=df)
+        df = df.astype(str)
 
         payload_response = {
             'dataset': self.sampling_dataset(df).to_json(force_ascii=False),
@@ -164,15 +165,20 @@ class Preprocessing:
 
     # 2-0-1. 동작 내역 DB 저장 함수
     def insert_job_history(self, payload, job_id):
-        content_json = json.dumps(payload)
+        dict_payload = dict(payload)
         target_id = 'admin' + str(random.randint(100, 300))
+
+        if 'file_name' in dict_payload:
+            del dict_payload['file_name']
+        if 'version' in dict_payload:
+            del dict_payload['version']
 
         job_history = {
             'file_name': payload['file_name'],
             'job_id': job_id,
             'version': payload['version'],
             'job_request_user_id': target_id,
-            'content': content_json
+            'content': json.dumps(dict_payload, ensure_ascii=False)
         }
 
         self.jhDAO.insert_job_history(job_history=job_history)
@@ -526,19 +532,183 @@ class Preprocessing:
     def set_col_prop_to_datetime(self, payload, df=None):
         dataset = self.get_df(payload=payload, df=df)
         selected_column = payload['selected_column']
-        new_column_name = payload['new_column_name']
+        dt_format = payload['format']
+        if df is not None:
+            dt_format2 = ""
+            for ch in dt_format:
+                if ch == '?':
+                    ch = '%'
+                dt_format2 += ch
+            dt_format = dt_format2
 
-        dataset[new_column_name] = pd.to_datetime(df[selected_column], infer_datetime_format=True)
+        if 'column_name' in payload:
+            column_name = payload['column_name']
+            dataset[column_name] = pd.to_datetime(dataset[selected_column], format=dt_format)
+        else:
+            dataset[selected_column] = pd.to_datetime(dataset[selected_column], format=dt_format)
         dataset_dtypes = self.get_dtype_of_dataframe(df=dataset)
 
         if df is None:
+            dataset = dataset.astype(str)
+
             response_json = {
                 'dataset': dataset.to_json(force_ascii=False),
                 'dataset_dtypes': dataset_dtypes
             }
+
+            # sql excute 할 때 %는 키워드로 인식 -->  % -> ?
+            # 더 나은 방법이 있으면 수정 예정
+            dt_format2 = ""
+            for ch in dt_format:
+                if ch == '%':
+                    ch = '?'
+                dt_format2 += ch
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            payload['format'] = dt_format2
+
+            self.insert_job_history(payload=payload, job_id="col_to_datetime")
+
             return response_json
         else:
             return dataset, dataset_dtypes
+
+    def split_variable_datetime(self, payload, df=None):
+        unit_list = payload['unit_list']
+        column_name = payload['column_name']
+        dataset = self.get_df(payload=payload, df=df)
+
+        for unit in unit_list:
+            temp = str(column_name) + '_' + unit
+            dataset[temp] = self.split_variable_to_unit(dataset, column_name=column_name, unit=unit)
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="split_var_dt")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    # dt.dayofweek
+    # dt.day_name
+    def split_variable_to_unit(self, dataset, column_name, unit):
+        if unit == 'year':
+            return dataset[column_name].dt.year
+        elif unit == 'month':
+            return dataset[column_name].dt.month
+        elif unit == 'month_name':
+            return dataset[column_name].dt.month_name()
+        elif unit == 'day':
+            return dataset[column_name].dt.day
+        elif unit == 'hour':
+            return dataset[column_name].dt.hour
+        elif unit == 'dayofweek':
+            return dataset[column_name].dt.dayofweek
+        elif unit == 'day_name':
+            return dataset[column_name].dt.day_name()
+        else:
+            print("EEEEERRRRRRRRRROOOORRRRR")
+            return dataset
+
+    # 2-5-3. 날짜 처리(문자열로)
+    def dt_to_str_format(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        column_name = payload['column_name']
+        dt_format = payload['format']
+        if df is not None:
+            dt_format2 = ""
+            for ch in dt_format:
+                if ch == '?':
+                    ch = '%'
+                dt_format2 += ch
+            dt_format = dt_format2
+
+        if 'new_column_name' in payload:
+            new_column_name = payload['new_column_name']
+            dataset[new_column_name] = dataset[column_name].dt.strftime(dt_format)
+        else:
+            dataset[column_name] = dataset[column_name].dt.strftime(dt_format)
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            dt_format2 = ""
+            for ch in dt_format:
+                if ch == '%':
+                    ch = '?'
+                dt_format2 += ch
+            payload['format'] = dt_format2
+
+            self.insert_job_history(payload=payload, job_id="dt_to_str_format")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    # 2-5-4. 날짜 처리(기준 일로 부터 날짜 차이)
+    def diff_datetime(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        unit = payload['unit']
+        column_name = payload['column_name']
+
+        year = payload['year']
+        month = payload['month']
+        day = payload['day']
+
+        if 'hour' in payload:
+            hour = payload['hour']
+            dt_diff = dataset[column_name] - datetime(year, month, day, hour)
+        else:
+            dt_diff = dataset[column_name] - datetime(year, month, day)
+
+        new_column_name = "diff" + str(year) + '-' + str(month) + '-' + str(day) + '-' + str(unit)
+        if unit == 'day':
+            dataset[new_column_name] = dt_diff.dt.days
+        if unit == 'minute':
+            dataset[new_column_name] = dt_diff.dt.total_seconds()/60
+        if unit == 'hour':
+            dataset[new_column_name] = dt_diff.dt.total_seconds()/360
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="diff_datetime")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
 
     # 3. 데이터 추출(저장)
     # parameter file_name, version
@@ -566,6 +736,8 @@ class Preprocessing:
         url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '.json'
 
         df = self.redo_job_history(payload=payload)
+        df.to_json(url,force_ascii=False)
+        print(df.head())
         return df.to_json(force_ascii=False)
 
     # 3-1. job_history load
@@ -581,10 +753,12 @@ class Preprocessing:
         result_set = self.get_job_historys_by_file_name_and_version(payload=payload)
         df = self.load_org_file(payload=payload)
         dataset_dtypes = self.get_dtype_of_dataframe(df=df)
+        i = 1
         for row in result_set:
             job_id = row['job_id']
             content = row['content']
-            self.app.logger.info('redo action ' + str(job_id))
+            self.app.logger.info('redo action ' + str(i) + ". " + str(job_id))
+            i += 1
             content['dataset_dtypes'] = dataset_dtypes
             df, dataset_dtypes = self.redo_jobs(job_id=job_id, content=content, df=df)
         return df
@@ -598,6 +772,14 @@ class Preprocessing:
             return self.calc_columns_redo(content, df=df)
         elif job_id == 'set_col_prop':
             return self.set_col_prop(content, df=df)
+        elif job_id == 'col_to_datetime':
+            return self.set_col_prop_to_datetime(content, df=df)
+        elif job_id == 'split_var_dt':
+            return self.split_variable_datetime(content, df=df)
+        elif job_id == 'dt_to_str_format':
+            return self.dt_to_str_format(content, df=df)
+        elif job_id == 'diff_datetime':
+            return self.diff_datetime(content, df=df)
         else:
             print('EEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRROOOOOOOOOOR')
 
@@ -606,7 +788,7 @@ class Preprocessing:
         dataset_dtypes = self.get_dtype_of_dataframe(calc_df)
         for payload in content['calc_job_history']:
             payload['dataset_dtypes'] = dataset_dtypes
-            calc_dataset, dataset_dtypes = self.calculating_column(payload, df=calc_df)
+            calc_df, dataset_dtypes = self.calculating_column(payload, df=calc_df)
         return self.select_calc_column_to_combine(content, origin_df=df, calc_df=calc_df)
 
     ########################################################################################

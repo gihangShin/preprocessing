@@ -135,17 +135,35 @@ def create_endpoints(app, service):
         return preprocessing_service.select_calc_column_to_combine(payload=payload)
 
     # 2-4. 컬럼 속성 변경
-    @app.route('/set_col_prop', methods=['POST'])
+    @app.route('/profile/set_col_prop', methods=['POST'])
     def set_col_prop():
         payload = request.get_json(force=True)
         return preprocessing_service.set_col_prop(payload=payload)
 
     # 2-5. 날짜 처리
     # 2-5-1. 선택 열 [date time] 으로 변환 후 추가
-    @app.roure('/set_col_prop_to_datetime', methods=['POST'])
+    @app.route('/profile/to_datetime', methods=['POST'])
     def set_col_prop_to_datetime():
         payload = request.get_json(force=True)
-        return preprocessing_service.set_col_prop_to_datetime()
+        return preprocessing_service.set_col_prop_to_datetime(payload=payload)
+
+    # 2-5-2. 날짜 처리(분할 하기)
+    @app.route('/profile/datetime/spite_variable', methods=['POST'])
+    def split_variable_datetime():
+        payload = request.get_json(force=True)
+        return preprocessing_service.split_variable_datetime(payload=payload)
+
+    # 2-5-3. 날짜 처리(문자열로)
+    @app.route('/profile/datetime/dt_to_str_format', methods=['POST'])
+    def dt_to_str_format():
+        payload = request.get_json(force=True)
+        return preprocessing_service.dt_to_str_format(payload=payload)
+
+    # 2-5-4. 날짜 처리(기준 일로 부터 날짜 차이)
+    @app.route('/profile/datetime/diff_datetime', methods=['POST'])
+    def diff_datetime():
+        payload = request.get_json(force=True)
+        return preprocessing_service.diff_datetime(payload=payload)
 
     ###################################################################
 
@@ -190,7 +208,6 @@ def create_endpoints(app, service):
     # 파라미터 session init
     @app.route('/project/load', methods=['POST'])
     def project_load():
-
         return '1234'
 
     @app.route('/load_df_from_directory', methods=['GET'])
