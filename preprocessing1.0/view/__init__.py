@@ -73,7 +73,11 @@ def create_endpoints(app, service):
 
     # 2-1. 열 삭제
     # /profile/{projectId}/data/{datasetId}/col-prop/columns/delete
-    @bp_preprocessing.route('/profile/<project_id>/data/<dataset_id>/col-prop/columns/delete', methods=['POST', 'GET'])
+    # @bp_preprocessing.route('/profile/<project_id>/data/<
+    #
+    #
+    # dataset_id>/col-prop/columns/delete', methods=['POST', 'GET'])
+    @bp_preprocessing.route('/delete_column', methods=['POST', 'GET'])
     def delete_column(project_id, dataset_id):
         payload = request.get_json(force=True)
         payload['project_id'] = project_id
@@ -131,16 +135,17 @@ def create_endpoints(app, service):
         return preprocessing_service.select_calc_column_to_combine(payload=payload)
 
     # 2-4. 컬럼 속성 변경
-    # /profile/{projectId}/data/{datasetId}/col-prop/{columnId=id}&{columnName=name}&{type=str}
-    @app.route('/profile/<project_id:str>/data/<dataset_id:str>/col-prop/<column_id:str>&<column_name:str>&<type:str>')
-    def col_prop(project_id, dataset_id, column_id, column_name, type):
+    @app.route('/set_col_prop', methods=['POST'])
+    def set_col_prop():
         payload = request.get_json(force=True)
-        payload['project_id'] = project_id
-        payload['dataset_id'] = dataset_id
-        payload['column_id'] = column_id
-        payload['column_name'] = column_name
-        payload['type'] = type
-        return preprocessing_service.col_prop(payload=payload)
+        return preprocessing_service.set_col_prop(payload=payload)
+
+    # 2-5. 날짜 처리
+    # 2-5-1. 선택 열 [date time] 으로 변환 후 추가
+    @app.roure('/set_col_prop_to_datetime', methods=['POST'])
+    def set_col_prop_to_datetime():
+        payload = request.get_json(force=True)
+        return preprocessing_service.set_col_prop_to_datetime()
 
     ###################################################################
 

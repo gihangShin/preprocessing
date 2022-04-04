@@ -52,6 +52,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\preprocessing1.0\server\project03\origin_data\bsdp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value=":" />
+            </Attribute>
+          </value>
+        </entry>
       </map>
     </option>
   </component>

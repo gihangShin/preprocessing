@@ -38,27 +38,24 @@ class Preprocessing:
         file_name = file_name_type.split('.')[-2]
         extention = file_name_type.split('.')[-1]
         org_url = project_dir + '/origin_data/' + file_name_type
-
-        if extention == 'json':
-            df_json = payload['file']
-            df = pd.read_json(df_json)
-        elif extention == 'csv':
-            df_csv = payload['file']
-            df = pd.read_csv(df_csv)
+        extention = 'csv'
+        df = pd.read_csv('./data/bsdpbsdp.csv')
+        # if extention == 'json':
+        #     df_json = payload['file']
+        #     df = pd.read_json(df_json)
+        # elif extention == 'csv':
+        #     df_csv = payload['file']
+        #     df = pd.read_csv(df_csv)
         df.to_json(org_url, force_ascii=False)
 
         version = 1.0
         new_url = project_dir + '/p_data/' + file_name + '_V' + str(round(version, 2)) + '.json'
         df.to_json(new_url, force_ascii=False)
 
-        session['project_name'] = project_name
-        session['file_name'] = file_name
-        session['version'] = version
-
         self.app.logger.info('org_url : ' + org_url)
         self.app.logger.info('new_url : ' + new_url)
-
-        return self.sampling_dataset(df).to_json()
+        return "1234"
+        # return self.sampling_dataset(df).to_json()
 
     # 1-2-1. 기존 파일 불러오기
     def load_existed_file(self, payload):
@@ -93,7 +90,7 @@ class Preprocessing:
     # 1-2-3. DataFrame columns dtype 불러오기 (-> dict)
     def get_dtype_of_dataframe(self, df):
         df = df.convert_dtypes()
-        df_dtypes = dict(df.dtypes)
+        df_dtypes = df.dtypes.to_dict()
         for k, v in df_dtypes.items():
             df_dtypes[k] = str(v)
         return df_dtypes
@@ -188,7 +185,7 @@ class Preprocessing:
     def delete_column(self, payload, df=None):
         column_name = payload['column_name']
         # column_id = payload['column_id']
-        df = self.get_df(payload=payload,df=df)
+        df = self.get_df(payload=payload, df=df)
 
         self.app.logger.info('delete_column / ' + column_name)
         df = df.drop([column_name], axis=1)
@@ -297,7 +294,12 @@ class Preprocessing:
         if df is None:
             dataset = self.get_df_from_payload(payload)
             calc_df = dataset.select_dtypes(include=['int64', 'float64'])
-            return calc_df.to_json(force_ascii=False)
+            dataset_dtypes = self.get_dtype_of_dataframe(calc_df)
+            response_object = {
+                'dataset': calc_df.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+            return response_object
         else:
             dataset = df
             calc_df = dataset.select_dtypes(include=['int64', 'float64'])
@@ -384,10 +386,7 @@ class Preprocessing:
     # 2-3-2-2. 연산 동작(산술 연산 선택 시)
     # 산술 연산 + - * / %
     def calc_arithmetic(self, payload, df=None):
-        if df is None:
-            calc_df = self.get_calc_dataset_from_payload(payload)
-        else:
-            calc_df = df
+        calc_df = self.get_df(payload=payload, df=df)
         operator = payload['operator']
         column1 = payload['column1']
         operand1 = calc_df[column1]
@@ -468,17 +467,14 @@ class Preprocessing:
     def select_calc_column_to_combine(self, payload, origin_df=None, calc_df=None):
         selected_columns = payload['selected_columns']
         if origin_df is None:
-            print("@@@@@@@@@@@@@@@origin_df is NONE")
             calc_dataset = self.get_calc_dataset_from_payload(payload)
             dataset = self.get_df_from_payload(payload, change_type=False)
         else:
             calc_dataset = calc_df
-            dataset = calc_df
+            dataset = origin_df
 
-        result_dataset = calc_dataset[selected_columns]
-        dataset = pd.concat([dataset, result_dataset], axis=1)
+        dataset[selected_columns] = calc_dataset[selected_columns]
         dataset_dtypes = self.get_dtype_of_dataframe(dataset)
-
 
         if origin_df is None:
             # 추출 시 재수행 동작이 아니라면 DB저장
@@ -500,11 +496,49 @@ class Preprocessing:
             return dataset, dataset_dtypes
 
     # 2-4. 컬럼 속성 변경
-    def col_prop(self, payload, df=None):
+    # 에러 처리 제외, 기능만 구현하게 코딩함.
+    def set_col_prop(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        column_name = payload['column_name']
+        types = payload['type']
+
+        dataset[column_name] = dataset[column_name].astype(types)
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
         if df is None:
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
 
-            pass
+            job_history_payload = {
+                'file_name': payload['file_name'],
+                'version': payload['version'],
+                'column_name': column_name,
+                'type': types  # list[json] 형식
+            }
 
+            self.insert_job_history(payload=job_history_payload, job_id='set_col_prop')
+            return response_json
+        else:
+            return df, dataset_dtypes
+
+    # 2-5-1. 선택 열 date time 으로 변환 후 추가
+    def set_col_prop_to_datetime(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        selected_column = payload['selected_column']
+        new_column_name = payload['new_column_name']
+
+        dataset[new_column_name] = pd.to_datetime(df[selected_column], infer_datetime_format=True)
+        dataset_dtypes = self.get_dtype_of_dataframe(df=dataset)
+
+        if df is None:
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+            return response_json
+        else:
+            return dataset, dataset_dtypes
 
     # 3. 데이터 추출(저장)
     # parameter file_name, version
@@ -532,9 +566,6 @@ class Preprocessing:
         url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '.json'
 
         df = self.redo_job_history(payload=payload)
-        print('export_project\n\n\n')
-        print(df.head())
-        # 테스트용
         return df.to_json(force_ascii=False)
 
     # 3-1. job_history load
@@ -548,13 +579,12 @@ class Preprocessing:
     # 3-2. 추출 전 동작 재수행
     def redo_job_history(self, payload):
         result_set = self.get_job_historys_by_file_name_and_version(payload=payload)
-
         df = self.load_org_file(payload=payload)
         dataset_dtypes = self.get_dtype_of_dataframe(df=df)
         for row in result_set:
             job_id = row['job_id']
             content = row['content']
-            self.app.logger.info('redo action ' + str(job_id) + ' / ' + str(content))
+            self.app.logger.info('redo action ' + str(job_id))
             content['dataset_dtypes'] = dataset_dtypes
             df, dataset_dtypes = self.redo_jobs(job_id=job_id, content=content, df=df)
         return df
@@ -566,6 +596,10 @@ class Preprocessing:
             return self.delete_column(content, df=df)
         elif job_id == 'calc_columns':
             return self.calc_columns_redo(content, df=df)
+        elif job_id == 'set_col_prop':
+            return self.set_col_prop(content, df=df)
+        else:
+            print('EEEEEEEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRRROOOOOOOOOOR')
 
     def calc_columns_redo(self, content, df):
         calc_df = self.get_calc_dataset(content, df=df)
@@ -678,7 +712,10 @@ class Preprocessing:
 
     def get_df(self, payload, df=None):
         if df is None:
-            return self.get_df_from_payload(payload)
+            if 'calc_dataset' in payload:
+                return self.get_calc_dataset_from_payload(payload=payload)
+            else:
+                return self.get_df_from_payload(payload)
         else:
             return df
 
