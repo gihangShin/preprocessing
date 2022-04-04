@@ -533,6 +533,7 @@ class Preprocessing:
         dataset = self.get_df(payload=payload, df=df)
         selected_column = payload['selected_column']
         dt_format = payload['format']
+
         if df is not None:
             dt_format2 = ""
             for ch in dt_format:
@@ -687,9 +688,33 @@ class Preprocessing:
         if unit == 'day':
             dataset[new_column_name] = dt_diff.dt.days
         if unit == 'minute':
-            dataset[new_column_name] = dt_diff.dt.total_seconds()/60
+            dataset[new_column_name] = dt_diff.dt.total_seconds() / 60
         if unit == 'hour':
-            dataset[new_column_name] = dt_diff.dt.total_seconds()/360
+            dataset[new_column_name] = dt_diff.dt.total_seconds() / 360
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="diff_datetime")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    # 2-6 컬럼 순서 변경
+    def column_order_change(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        col_order_list = payload['col_order_list']
+
+        dataset = dataset[col_order_list]
 
         dataset_dtypes = self.get_dtype_of_dataframe(dataset)
 
@@ -730,14 +755,16 @@ class Preprocessing:
         ######################################
         # session 말고 DB에 저장 or request 로 받아올 예정 수정 필요 #
         ######################################
-
         self.app.logger.info('export_project version: ' + version)
         # url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '_D' + date + '.json'
         url = "./server/" + project_name + '/p_data/' + file_name + '_V' + version + '.json'
 
         df = self.redo_job_history(payload=payload)
-        df.to_json(url,force_ascii=False)
+        df.to_json(url, force_ascii=False)
         print(df.head())
+        print("#############")
+        print(df.columns)
+        df = df.astype(str)
         return df.to_json(force_ascii=False)
 
     # 3-1. job_history load

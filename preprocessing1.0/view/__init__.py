@@ -165,6 +165,12 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return preprocessing_service.diff_datetime(payload=payload)
 
+    # 2-6 컬럼 순서 변경
+    @app.route('/profile/columns-order-change', methods=['POST'])
+    def columns_order_change():
+        payload = request.get_json(force=True)
+        return preprocessing_service.column_order_change(payload=payload)
+
     ###################################################################
 
     # 3. 데이터 추출(저장)
