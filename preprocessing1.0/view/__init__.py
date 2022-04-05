@@ -171,6 +171,24 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return preprocessing_service.column_order_change(payload=payload)
 
+    # 2-7 대, 소문자 변환
+    @app.route('/profile/col_prop/string/change', methods=['POST'])
+    def col_prop_string_change():
+        payload = request.get_json(force=True)
+        return preprocessing_service.col_prop_string_change(payload=payload)
+
+    # 2-8 치환 - 입력값으로 교체
+    @app.route('/profile/col_prop/string/search-replace', methods=['POST'])
+    def col_prop_string_search_replace():
+        payload = request.get_json(force=True)
+        return preprocessing_service.col_prop_string_search_replace(payload=payload)
+
+    # 2-9 공백 제거
+    @app.route('/profile/col_prop/string/remove_space', methods=['POST'])
+    def remove_space():
+        payload = request.get_json(force=True)
+        return preprocessing_service.remove_space(payload=payload)
+
     ###################################################################
 
     # 3. 데이터 추출(저장)

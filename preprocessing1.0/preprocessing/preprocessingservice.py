@@ -239,7 +239,6 @@ class Preprocessing:
         if df is None:
             return_object = {
                 'dataset': dataset.to_json(force_ascii=False),
-                # 'dataset': dataset.to_dict(),
                 'dataset_dtypes': payload['dataset_dtypes']
             }
             del payload['dataset']
@@ -712,9 +711,9 @@ class Preprocessing:
     # 2-6 컬럼 순서 변경
     def column_order_change(self, payload, df=None):
         dataset = self.get_df(payload=payload, df=df)
-        col_order_list = payload['col_order_list']
+        col_order_list = list(payload['col_order_list'])
 
-        dataset = dataset[col_order_list]
+        dataset = dataset.iloc[:, col_order_list]
 
         dataset_dtypes = self.get_dtype_of_dataframe(dataset)
 
@@ -728,12 +727,105 @@ class Preprocessing:
             del payload['dataset']
             del payload['dataset_dtypes']
 
-            self.insert_job_history(payload=payload, job_id="diff_datetime")
+            self.insert_job_history(payload=payload, job_id="column_order_change")
 
             return response_json
         else:
             return dataset, dataset_dtypes
 
+    # 2-7 대소문자 변환
+    def col_prop_string_change(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        column_name = payload['column_name']
+        str_type = payload['str_type']
+
+        if str_type == 'UPP':
+            dataset[column_name] = dataset[column_name].str.upper()
+        elif str_type == 'LOW':
+            dataset[column_name] = dataset[column_name].str.lower()
+        elif str_type == 'CAP':
+            dataset[column_name] = dataset[column_name].str.capitalize()
+        elif str_type == 'TIT':
+            dataset[column_name] = dataset[column_name].str.title()
+        else:
+            pass
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="change_column_order")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    # 2-8 치환 - 입력값으로 교체
+    def col_prop_string_search_replace(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+
+        column_name = payload['column_name']
+        method = payload['method']
+        to_replace = payload['to_replace']
+        value = payload['value']
+
+        if method == 'default':
+            dataset[column_name].replace(to_replace=to_replace, value=value, inplace=True)
+        elif method == 'regex':
+            to_replace = "(.*)"+str(to_replace)+"(.*)"
+            value = r"\1"+str(value)+r"\2"
+            dataset[column_name].replace(to_replace=to_replace, value=value, regex=True, inplace=True)
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="replace_col_value")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    # 2-9 공백제거
+    def remove_space(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        column_name = payload['column_name']
+
+        dataset[column_name] = dataset[column_name].str.strip()
+
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="replace_space")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
 
     # 3. 데이터 추출(저장)
     # parameter file_name, version
