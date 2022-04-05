@@ -827,6 +827,48 @@ class Preprocessing:
         else:
             return dataset, dataset_dtypes
 
+    # 2-10-1 중복 값 확인
+    def row_control_show_duplicate_row(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        columns = payload['columns']
+
+        duplicate_values = dataset[columns].value_counts()
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes,
+                'duplicate_values': duplicate_values.to_json(force_ascii=False)
+            }
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
+
+    def row_control_drop_duplicate_row(self, payload, df=None):
+        dataset = self.get_df(payload=payload, df=df)
+        columns = payload['columns']
+
+        dataset = dataset.drop_duplicates(subset=columns)
+        dataset_dtypes = self.get_dtype_of_dataframe(dataset)
+
+        if df is None:
+            dataset = dataset.astype(str)
+            response_json = {
+                'dataset': dataset.to_json(force_ascii=False),
+                'dataset_dtypes': dataset_dtypes
+            }
+
+            del payload['dataset']
+            del payload['dataset_dtypes']
+
+            self.insert_job_history(payload=payload, job_id="replace_space")
+
+            return response_json
+        else:
+            return dataset, dataset_dtypes
     # 3. 데이터 추출(저장)
     # parameter file_name, version
     def export_project(self, payload, method='minor'):

@@ -189,6 +189,18 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return preprocessing_service.remove_space(payload=payload)
 
+    # 2-10-1 중복 값 확인
+    @app.route('/profile/row_control/show_duplicate_row', methods=['POST'])
+    def row_control_show_duplicate_row():
+        payload = request.get_json(force=True)
+        return preprocessing_service.row_control_show_duplicate_row(payload=payload)
+
+    # 2-10-2 중복 값 처리
+    @app.route('/profile/row_control/drop_duplicate_row', methods=['POST'])
+    def row_control_duplicate_row():
+        payload = request.get_json(force=True)
+        return preprocessing_service.row_control_drop_duplicate_row(payload=payload)
+
     ###################################################################
 
     # 3. 데이터 추출(저장)
