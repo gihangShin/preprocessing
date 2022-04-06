@@ -219,7 +219,7 @@ class HandlingDataset:
         for unit in ds.job_params['unit_list']:
             temp = str(ds.job_params['column']) + '_' + unit
             ds.dataset[temp] = self.split_variable_to_unit(ds, unit=unit)
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     def split_variable_to_unit(self, ds, unit):
@@ -262,7 +262,7 @@ class HandlingDataset:
             dt_format2 += ch
         ds.job_params['dt_format'] = dt_format2
 
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
@@ -287,14 +287,14 @@ class HandlingDataset:
         if ds.job_params['unit'] == 'hour':
             ds.dataset[new_column_name] = dt_diff.dt.total_seconds() / 360
 
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
     # 1-8. 컬럼 순서 변경
     def change_column_order(self, ds):
         ds.dataset = ds.dataset.iloc[:, list(ds.job_params['col_order_list'])]
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
 
         return ds
 
@@ -312,7 +312,7 @@ class HandlingDataset:
         else:
             pass
 
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
@@ -326,14 +326,14 @@ class HandlingDataset:
             value = r"\1" + str(ds.job_params['value']) + r"\2"
             ds.dataset[ds.job_params['column']].replace(to_replace=to_replace, value=value, regex=True, inplace=True)
 
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
     # 1-11. 공백 제거 (앞 뒤만 해당, 문자 사이 X)
     def remove_space_front_and_rear(self, ds):
         ds.dataset[ds.job_params['column']] = ds.dataset[ds.job_params['column']].str.strip()
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
@@ -343,7 +343,7 @@ class HandlingDataset:
             ds.dataset.drop_duplicates(subset=ds.job_params['columns'], keep=ds.job_params['keep'], inplace=True)
         else:
             ds.dataset.drop_duplicates(subset=ds.job_params['columns'], keep='first', inplace=True)
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
@@ -359,7 +359,7 @@ class HandlingDataset:
 
         elif ds.job_params['method'] == 'function':
             ds = self.calc_function(ds)
-        ds.data_types = ds.get_get_types()
+        ds.data_types = ds.get_types()
         return ds
 
     # 1-14-1. 연산 동작(함수 선택 시)
