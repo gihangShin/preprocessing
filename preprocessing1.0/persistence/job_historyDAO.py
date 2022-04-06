@@ -18,7 +18,7 @@ class JobHistoryDao:
         sql += "'" + job_history['job_request_user_id'] + "', "
         sql += "'" + job_history['content'] + "') "
 
-        self.logger.info('execute sql -> ' + sql)
+        self.logger.info('execute sql -> \n' + sql)
         self.db.execute(sql)
 
     def init_dataset(self):
@@ -47,7 +47,7 @@ class JobHistoryDao:
         sql = "SELECT * FROM preparation_job_history"
         sql += " where file_id='" + file_name + "' AND version=" + str(round(version,2))
         sql += " order by seq ASC"
-        self.logger.info('execute sql -> ' + sql)
+        self.logger.info('execute sql -> \n' + sql)
         result = self.db.execute(sql)
         result_set = list()
         for row in result:

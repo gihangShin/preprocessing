@@ -1,9 +1,8 @@
 from flask import Flask, session
 from flask_cors import CORS
-from flask_session import Session
 from sqlalchemy import create_engine
 
-from preprocessing import preprocessingservice
+from preprocessing import preprocessingservice, handling_dataset, dataset
 from view import create_endpoints
 from persistence import datasetDAO, job_historyDAO
 
@@ -25,14 +24,15 @@ def create_app():
     # app.config['MAX_CONTENT_LENGTH']
     app.config['JSON_AS_ASCII'] = False
 
-    Session(app)
     CORS(app)
 
     db = create_engine(app.config['DB_URL'])
     dsDAO = datasetDAO.DatasetDao(db, app)
     jobHistoryDAO = job_historyDAO.JobHistoryDao(db, app)
     # preprocessing 전처리 (service)
-    pre_service = preprocessingservice.Preprocessing(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO)
+    dataset1 = dataset
+    hd = handling_dataset.HandlingDataset(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO)
+    pre_service = preprocessingservice.Preprocessing(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO, hd=hd, dataset=dataset1)
     # profiling_service = <>.class(app)
 
     # 엔드포인트 생성

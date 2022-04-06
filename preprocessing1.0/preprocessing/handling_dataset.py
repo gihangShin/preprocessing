@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import numpy as np
-from dataset import Dataset
 
 
 # HandlingDataset 연산만 생각
@@ -81,22 +80,55 @@ class HandlingDataset:
         ds.dataset = sampled_df
         return ds
 
+    # 0-3. redirect_preprocess
+    def redirect_preprocess(self, ds):
+        job_id = ds.job_id
+        if job_id == 'delete_column':
+            ds = self.delete_column(ds)
+        elif job_id == 'missing_value':
+            ds = self.missing_value(ds)
+        elif job_id == 'set_col_prop':
+            ds = self.set_col_prop(ds)
+        elif job_id == 'set_col_prop_to_datetime':
+            ds = self.set_col_prop_to_datetime(ds)
+        elif job_id == 'split_datetime':
+            ds = self.split_datetime(ds)
+        elif job_id == 'dt_to_str_format':
+            ds = self.dt_to_str_format(ds)
+        elif job_id == 'diff_datetime':
+            ds = self.diff_datetime(ds)
+        elif job_id == 'change_column_order':
+            ds = self.change_column_order(ds)
+        elif job_id == 'case_sensitive':
+            ds = self.case_sensitive(ds)
+        elif job_id == 'replace_by_input_value':
+            ds = self.replace_by_input_value(ds)
+        elif job_id == 'remove_space_front_and_rear':
+            ds = self.remove_space_front_and_rear(ds)
+        elif job_id == 'drop_duplicate_row':
+            ds = self.drop_duplicate_row(ds)
+        elif job_id == 'calculating_column':
+            ds = self.calculating_column(ds)
+        else:
+            print('ERRORERRORERRORERRORERROR')
+        return ds
+
     ##########################################################################
     ##########################################################################
     # 1. 전처리 동작
     ##########################################################################
     # 1-1. 열 삭제
     def delete_column(self, ds):
-        self.app.logger.info('delete_column / ' + ds.job_params)
-
-        ds.dataset = ds.dataset.drop([ds.job_params['column_name']], axis=1)
+        self.app.logger.info('delete_column / ' + str(ds.job_params))
+        ds.dataset = ds.dataset.drop(columns=ds.job_params['columns'], axis=1)
+        ds.data_types = ds.get_types()
         ds.sync_dataset_with_dtypes()
         return ds
 
     ##########################################################################
     # 1-2. 결측치 처리 (열 연산)
     def missing_value(self, ds):
-        self.app.logger.info('missing_value / ' + ds.job_params)
+        self.app.logger.info('missing_value / ' + str(ds.job_params))
 
         return self.handling_missing_value(ds)
 
@@ -153,8 +185,8 @@ class HandlingDataset:
     # 1-3. 컬럼 속성 변경
     # 에러 처리 제외, 기능만 구현하게 코딩함.
     def set_col_prop(self, ds):
-        ds.dataset[ds.job_params['column']] = ds.dataset[ds.job_params['column']].astype(ds.job_params['types'])
-        ds.data_types = ds.get_get_types()
+        ds.dataset[ds.job_params['column']] = ds.dataset[ds.job_params['column']].astype(ds.job_params['type'])
+        ds.data_types = ds.get_types()
         return ds
 
     ##########################################################################
@@ -441,38 +473,7 @@ class HandlingDataset:
             ds.job_params = row['content']
             self.app.logger.info('redo action ' + str(i) + ". " + str(ds.job_id))
             i += 1
-            ds = self.redo_jobs(job_id=ds.job_id, ds=ds)
-        return ds
-
-    def redo_jobs(self, job_id, ds):
-        if job_id == 'delete_column':
-            ds = self.delete_column(ds)
-        elif job_id == 'missing_value':
-            ds = self.missing_value(ds)
-        elif job_id == 'set_col_prop':
-            ds = self.set_col_prop(ds)
-        elif job_id == 'set_col_prop_to_datetime':
-            ds = self.set_col_prop_to_datetime(ds)
-        elif job_id == 'split_datetime':
-            ds = self.split_datetime(ds)
-        elif job_id == 'dt_to_str_format':
-            ds = self.dt_to_str_format(ds)
-        elif job_id == 'diff_datetime':
-            ds = self.diff_datetime(ds)
-        elif job_id == 'change_column_order':
-            ds = self.change_column_order(ds)
-        elif job_id == 'case_sensitive':
-            ds = self.case_sensitive(ds)
-        elif job_id == 'replace_by_input_value':
-            ds = self.replace_by_input_value(ds)
-        elif job_id == 'remove_space_front_and_rear':
-            ds = self.remove_space_front_and_rear(ds)
-        elif job_id == 'drop_duplicate_row':
-            ds = self.drop_duplicate_row(ds)
-        elif job_id == 'calculating_column':
-            ds = self.calculating_column(ds)
-        else:
-            print('ERRORERRORERRORERRORERROR')
+            ds = self.redirect_preprocess(ds=ds)
         return ds
 
     # 3-1. job_history load

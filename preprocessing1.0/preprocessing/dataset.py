@@ -5,13 +5,17 @@ import pandas as pd
 
 class Dataset:
 
+    def __int__(self):
+        pass
+
     def __init__(self, params):
         self.project_id = params['project_id']
         self.file_id = params['file_id']
         self.version = float(params['version'])
         self.dataset = None
         self.data_types = None
-        self.job_params = params['job_params']
+        if 'params' in params:
+            self.job_params = params['params']
         self.job_id = None
 
     ###############################################
@@ -22,10 +26,12 @@ class Dataset:
         full_file_name = '%s_V%.2f.json' % (self.file_id, self.version)
 
         url = project_dir + full_file_name
-        self.app.logger.info('load_org_file_url : ' + url)
+        print("######################")
+        print(url)
+
         self.dataset = pd.read_json(url)
         self.dataset.convert_dtypes()
-        self.data_types = self.get_dtypes()
+        self.data_types = self.get_types()
 
         ##################
         # 개발 서버에서 실제 코드
@@ -58,7 +64,7 @@ class Dataset:
         data_types = self.dataset.dtypes.to_dict()
         self.data_types = dict()
         for k, v in data_types.items():
-            self.data_dtypes[k] = str(v)
+            self.data_types[k] = str(v)
         return self.data_types
 
     def sync_dataset_with_dtypes(self):
@@ -69,9 +75,10 @@ class Dataset:
         return self.dataset.to_json(force_ascii=False)
 
     def job_params_to_json(self):
-        return self.job_params.to_json(force_ascii=False)
+        return json.dumps(self.job_params, ensure_ascii=False)
 
     def dataset_and_dtypes_to_json(self):
+        self.dataset = self.dataset.astype(str)
         return json.dumps({
             'dataset': self.dataset_to_json(),
             'dataset_dtypes': self.data_types
