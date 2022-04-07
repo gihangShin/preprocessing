@@ -37,28 +37,11 @@ class HandlingDataset:
     #########################################################################
     # 0-2. dataset 샘플링
     def sampling_dataset(self, ds):
-        self.app.logger.info('sampling parameter 없음 Default value SEQ/ROW/FRT/50')
+        self.app.logger.info('sampling parameter X -> Default SEQ/ROW/FRT/50')
         sampling_method = 'SEQ'
         ord_value = 50
         ord_row = 'ROW'
         ord_set = 'FRT'
-        # else:
-        ########################################
-        # session 말고 DB에서 불러올 예정 수정 필요 #
-        ########################################
-        # pass
-        # sampling_method = session['sampling_method']
-        # ord_value = int(session['ord_value'])
-        # ord_row = session['ord_row']
-        # if 'ord_set' in session:
-        #     ord_set = session['ord_set']
-        # else:
-        #     ord_set = 'FRT'
-        # msg = sampling_method + '/'
-        # msg += ord_row + '/'
-        # msg += ord_set + '/'
-        # msg += str(ord_value)
-        # self.app.logger.info('sampling parameter ' + msg)
 
         if sampling_method == 'RND':
             # Data Frame 셔플 수행
@@ -83,6 +66,7 @@ class HandlingDataset:
     # 0-3. redirect_preprocess
     def redirect_preprocess(self, ds):
         job_id = ds.job_id
+        self.app.logger.info('%s [%s]' % (ds.job_id, str(ds.job_params)))
         if job_id == 'delete_column':
             ds = self.delete_column(ds)
         elif job_id == 'missing_value':
@@ -109,6 +93,12 @@ class HandlingDataset:
             ds = self.drop_duplicate_row(ds)
         elif job_id == 'calculating_column':
             ds = self.calculating_column(ds)
+        elif job_id == 'drop_row':
+            ds = self.drop_row(ds)
+        elif job_id == 'rename_col':
+            ds = self.rename_col(ds)
+        elif job_id == 'split_col':
+            ds = self.split_col(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
@@ -119,7 +109,6 @@ class HandlingDataset:
     ##########################################################################
     # 1-1. 열 삭제
     def delete_column(self, ds):
-        self.app.logger.info('delete_column / ' + str(ds.job_params))
         ds.dataset = ds.dataset.drop(columns=ds.job_params['columns'], axis=1)
         ds.data_types = ds.get_types()
         ds.sync_dataset_with_dtypes()
@@ -347,12 +336,12 @@ class HandlingDataset:
         return ds
 
     ##########################################################################
-    # 1-13. 중복 값 확인                                            (단순 조회)
+    # 조회 1. 중복 값 확인                                            (단순 조회)
     def show_duplicate_row(self, ds):
         return ds.dataset[ds.job_params['column']].value_counts()
 
     ##########################################################################
-    # 1-14. 연산
+    # 1-13. 연산
     def calculating_column(self, ds):
         if ds.job_params['method'] == 'arithmetic':
             ds = self.calc_arithmetic(ds)
@@ -362,7 +351,7 @@ class HandlingDataset:
         ds.data_types = ds.get_types()
         return ds
 
-    # 1-14-1. 연산 동작(함수 선택 시)
+    # 1-13-1. 연산 동작(함수 선택 시)
     def calc_function(self, ds):
         function = ds.job_params['calc_function']
         columns = ds.job_params['columns']
@@ -397,7 +386,7 @@ class HandlingDataset:
         ds.dataset[column_name] = result
         return ds
 
-    # 1-14-2. 연산 동작(산술 연산 선택 시)
+    # 1-13-2. 연산 동작(산술 연산 선택 시)
     def calc_arithmetic(self, ds):
         operator = ds.job_params['operator']
         column1 = ds.job_params['column1']
@@ -439,7 +428,7 @@ class HandlingDataset:
         ds.dataset[column_name] = result
         return ds
 
-    # 1-14-3. 두번째 피연산자 == 컬럼의 집계값 사용 시
+    # 1-13-3. 두번째 피연산자 == 컬럼의 집계값 사용 시
     def calc_column_aggregate_function(self, ds):
         column2 = ds.job_params['value']
         function = ds.job_params['column_function']
@@ -460,6 +449,52 @@ class HandlingDataset:
         column_name = function + '(' + column2 + ')'
         return result, column_name
 
+    # 14. 열 삭제
+    def drop_row(self, ds):
+        drop_type = ds.job_params['type']
+        if drop_type == 'INPT':
+            # 지정 값 일치 삭제 INPT
+            index = ds.dataset[ds.dataset[ds.job_params['column']] == ds.job_params['input']].index
+        elif drop_type == 'INVL':
+            # 유효하지 않은 데이터 삭제 INVL
+            # 일단 결측 삭제
+            index = ds.dataset[ds.dataset[ds.job_params['column']].isna() == True].index
+        elif drop_type == 'NEGA':
+            # 음수 값 로우 삭제 NEGA
+            if ds.data_types[ds.job_params['column']] not in ('int', 'float', 'int64', 'float64'):
+                self.app.logger.info('column [%s] is not (Int, float) type' % ds.job_params['column'])
+                return ds
+            index = ds.dataset[ds.dataset[ds.job_params['column']] < 0].index
+        else:
+            pass
+        ds.dataset.drop(index, inplace=True, axis=0)
+        return ds
+
+    # 15. 컬럼 이름 변경
+    def rename_col(self, ds):
+        ds.dataset.rename(columns={ds.job_params['column_name']: ds.job_params['new_column_name']}, inplace=True)
+        ds.data_types = ds.get_types()
+        return ds
+
+    # 16. 컬럼 분할 ( 구분자, 컬럼 길이로 분할, 역분할(뒤에서 부터))
+    def split_col(self, ds):
+        if ds.job_params['type'] == 'SEP':
+            col_name = '%s_%s_by_%s' % (ds.job_params['type'], ds.job_params['column'], ds.job_params['input'])
+            ds.dataset[col_name] = ds.dataset[ds.job_params['column']].str.split(ds.job_params['input']).str[
+                ds.job_params['position'] - 1]
+
+        elif ds.job_params['type'] == 'LEN':
+            if ds.job_params['reverse'] is True:
+                input_value = abs(int(ds.job_params['input'])) * -1
+                col_name = '%s_%s_by_%s' % (ds.job_params['type'], ds.job_params['column'], str(input_value))
+                ds.dataset[col_name] = ds.dataset[ds.job_params['column']].str[input_value:]
+            else:
+                input_value = abs(int(ds.job_params['input']))
+                col_name = '%s_%s_by_%s' % (ds.job_params['type'], ds.job_params['column'], str(input_value))
+                ds.dataset[col_name] = ds.dataset[ds.job_params['column']].str[:input_value]
+        ds.data_types = ds.get_types()
+        return ds
+
     ###########################################################################
     ###########################################################################
     # 2. 추출 동작
@@ -471,8 +506,8 @@ class HandlingDataset:
         for row in self.get_job_historys(ds):
             ds.job_id = row['job_id']
             ds.job_params = row['content']
-            self.app.logger.info('redo action ' + str(i) + ". " + str(ds.job_id))
             i += 1
+            self.app.logger.info('redo action ' + str(i) + ". " + str(ds.job_id))
             ds = self.redirect_preprocess(ds=ds)
         return ds
 

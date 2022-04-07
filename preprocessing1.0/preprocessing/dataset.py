@@ -1,5 +1,6 @@
 import json
 
+import numpy as np
 import pandas as pd
 
 
@@ -26,8 +27,10 @@ class Dataset:
         full_file_name = '%s_V%.2f.json' % (self.file_id, self.version)
 
         url = project_dir + full_file_name
-        print("######################")
+        print("######################URL#######################")
         print(url)
+
+        # url = "./server/project03/origin_data/sampledtrain.json"
 
         self.dataset = pd.read_json(url)
         self.dataset.convert_dtypes()
@@ -51,7 +54,7 @@ class Dataset:
 
     def export_dataset(self):
         # 추출
-        url = "./server/%s/p_data/%s_V%.2f.json" % (self.project_id, self.file_id, self.version)
+        url = "./server/%s/p_data/%s_V%.2f.json" % (self.project_id, self.file_id, self.version + 0.01)
         self.dataset.to_json(url, force_ascii=False)
 
     def load_dataset(self, params):
@@ -68,7 +71,7 @@ class Dataset:
         return self.data_types
 
     def sync_dataset_with_dtypes(self):
-        self.dataset = self.dataset.astype(self.data_types)
+        self.dataset = self.dataset.astype(self.data_types).replace({'nan': np.nan})
         return self
 
     def dataset_to_json(self):
