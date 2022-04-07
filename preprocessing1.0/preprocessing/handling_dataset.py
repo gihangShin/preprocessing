@@ -507,7 +507,7 @@ class HandlingDataset:
             ds.job_id = row['job_id']
             ds.job_params = row['content']
             i += 1
-            self.app.logger.info('redo action ' + str(i) + ". " + str(ds.job_id))
+            self.app.logger.info('redo action ' + str(i) + ". ")
             ds = self.redirect_preprocess(ds=ds)
         return ds
 

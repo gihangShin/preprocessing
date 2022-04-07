@@ -32,7 +32,7 @@ def create_app():
     # preprocessing 전처리 (service)
     dataset1 = dataset
     hd = handling_dataset.HandlingDataset(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO)
-    pre_service = preprocessingservice.Preprocessing(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO, hd=hd, dataset=dataset1)
+    pre_service = preprocessingservice.Preprocessing(hd=hd, dataset=dataset1)
     # profiling_service = <>.class(app)
 
     # 엔드포인트 생성

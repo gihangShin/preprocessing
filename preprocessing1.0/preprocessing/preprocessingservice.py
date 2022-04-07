@@ -12,10 +12,7 @@ from flask import session
 
 class Preprocessing:
 
-    def __init__(self, app, dsDAO, jhDAO, hd, dataset):
-        self.app = app
-        self.dsDAO = dsDAO
-        self.jhDAO = jhDAO
+    def __init__(self, hd, dataset):
         self.hd = hd
         self.dataset = dataset
         # self.hd = handling_dataset.HandlingDataset(app, dsDAO, jhDAO)
@@ -64,5 +61,9 @@ class Preprocessing:
 
         # redo
         ds = self.hd.redo_job_history(ds=ds)
+        print(ds.dataset.head())
+        print(ds.dataset.describe())
+        print(ds.dataset.shape)
+        print(ds.data_types)
         ds.export_dataset()
-        return "message"
+        return "추출 완료"
