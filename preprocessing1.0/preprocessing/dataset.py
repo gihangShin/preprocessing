@@ -9,6 +9,7 @@ class Dataset:
     def __int__(self):
         pass
 
+    # 선언 할 때 초기화 -> 기본 parameter 등록
     def __init__(self, params):
         self.project_id = params['project_id']
         self.file_id = params['file_id']

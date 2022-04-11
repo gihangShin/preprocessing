@@ -99,6 +99,8 @@ class HandlingDataset:
             ds = self.rename_col(ds)
         elif job_id == 'split_col':
             ds = self.split_col(ds)
+        elif job_id == 'missing_data_model':
+            ds = self.missing_data_model(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
@@ -494,6 +496,55 @@ class HandlingDataset:
                 ds.dataset[col_name] = ds.dataset[ds.job_params['column']].str[:input_value]
         ds.data_types = ds.get_types()
         return ds
+
+    # 16. 결측치 처리 머신 러닝 모델 활용
+    # def missing_data_model(self, ds):
+    #     # 분류, 회귀 구분
+    #     # method
+    #
+    #     # 알고리즘 미지정시 분류, 회귀에 맞는 4~5가지 동작 후 가장 RMSE가 낮은 모델 사용
+    #     algorithm = ds.job_params['algorithm']
+    #
+    #     data = ds.dataset
+    #
+    #     if algorithm == 'LinearRegressor':
+    #         # model = LinearRegression()
+    #         pass
+    #     elif algorithm == 'RandomForestRegressor':
+    #         # model = RandomForestRegression()
+    #         pass
+    #     else:
+    #
+    #
+    #     self.predict_result(model, data)
+    #
+    #     ds.data_types = ds.get_types()
+    #     return ds
+    #
+    # # 16-1.
+    # def predict_result(model, data):
+    #     # dir_prev_bfnum = 0 인 것과 아닌것 나누기
+    #
+    #     data['dir_prev_bfnum'].fillna(0, inplace=True)
+    #     trainPrev_Bfnum0 = data[data['dir_prev_bfnum'] == 0]
+    #     trainPrev_BfnumNot0 = data[data['dir_prev_bfnum'] != 0]
+    #
+    #     # dir_prev_bfnum과 연관된 컬럼
+    #     X_BfnumNot0 = trainPrev_BfnumNot0.drop(columns=['title', 'distributor', 'release_time', 'director'])
+    #     X_Bfnum0 = trainPrev_Bfnum0.drop(columns=['title', 'distributor', 'release_time', 'director'])
+    #     target_name = 'dir_prev_bfnum'
+    #
+    #     # model = LinearRegression()
+    #     model.fit(X_BfnumNot0, trainPrev_BfnumNot0[target_name])
+    #
+    #     target_prediction = model.predict(X_Bfnum0)
+    #
+    #     trainPrev_Bfnum0['dir_prev_bfnum'] = target_prediction
+    #     data = trainPrev_BfnumNot0.append(trainPrev_Bfnum0)
+    #     data["dir_prev_bfnum"] = data["dir_prev_bfnum"].astype("int")
+    #
+    #     data.reset_index(inplace=True)
+    #     return data
 
     ###########################################################################
     ###########################################################################

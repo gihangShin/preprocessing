@@ -35,6 +35,7 @@ class Preprocessing:
         ds.load_dataset_from_request(payload)
         ds.set_job_id(job_id)
 
+        # 가공동작 통합 redirect
         ds = self.hd.redirect_preprocess(ds)
 
         self.hd.insert_job_history_into_database(ds)

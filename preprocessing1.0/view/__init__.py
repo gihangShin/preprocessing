@@ -132,4 +132,10 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return ps.preprocessing(payload=payload, job_id='split_col')
 
+    # 16. 결측치 처리 머신 러닝 모델 활용
+    @bp_preprocessing.route('/missing_data_model', methods=['POST', 'GET'])
+    def missing_data_model():
+        payload = request.get_json(force=True)
+        return ps.preprocessing(payload=payload, job_id='missing_data_model')
+
     app.register_blueprint(bp_preprocessing)
