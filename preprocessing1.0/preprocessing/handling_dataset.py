@@ -106,6 +106,8 @@ class HandlingDataset:
             ds = self.split_col(ds)
         elif job_id == 'missing_data_model':
             ds = self.missing_data_model(ds)
+        elif job_id == 'unit_conversion':
+            ds = self.unit_conversion(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
@@ -621,6 +623,7 @@ class HandlingDataset:
         value = ds.job_params['value']
 
         if operator == '==':
+            # 다른 타입도 가능
             return ds.dataset[ds.dataset[column] == value]
         elif operator == '!=':
             return ds.dataset[ds.dataset[column] != value]
@@ -638,6 +641,109 @@ class HandlingDataset:
         elif operator == 'else':
             value2 = ds.job_params['value2']
             return ds.dataset[(value > ds.dataset[column]) | (value2 < ds.dataset[column])]
+        else:
+            return 'ERROR'
+
+    ##########################################################################
+    # 18. 단위 변환 ex) kg -> g
+    def unit_conversion(self, ds):
+
+        method = ds.job_params['method']
+        current_unit = ds.job_params['current_unit']
+        conversion_unit = ds.job_params['conversion_unit']
+
+        column = ds.job_params['column']
+        if current_unit in column:
+            column_name = column.split('(')[0]
+        else:
+            column_name = column
+
+        new_column_name = "%s(%s)" % (column_name, conversion_unit)
+
+        if method == 'temperature':
+            if current_unit == 'Celsius':
+                # 섭씨 -> 화씨
+                # F = C(1.8) + 32
+                ds.dataset[new_column_name] = (ds.dataset[column] * 1.8) + 32
+            elif current_unit == 'Fahrenheit':
+                # 화씨 -> 섭씨
+                # C = (F-32) / 1.8
+                ds.dataset[new_column_name] = (ds.dataset[column] - 32) / 1.8
+        else:
+            unit_data = self.get_unit(method)
+            ds.dataset[new_column_name] = ds.dataset[column] / unit_data[current_unit] * unit_data[conversion_unit]
+        ds.dataset[new_column_name] = ds.dataset[new_column_name].round(2)
+        ds.data_types = ds.get_types()
+        return ds
+
+    def get_unit(self, method):
+        if method == 'length':
+            # 기준 m
+            return {
+                "cm": 100,
+                "mm": 1000,
+                "m": 1,
+                "km": 0.001,
+                "in": 39.370079,
+                "ft": 3.28084,
+                "yd": 1.093613,
+                "mile": 0.000621
+            }
+        elif method == 'weight':
+            # 기준 kg
+            return {
+                "mg": 1000000,
+                "g": 1000,
+                "kg": 1,
+                "t": 0.001,
+                "kt": 1e-6,
+                "gr": 15432.3584,
+                "oz": 35.273962,
+                "lb": 2.204623
+            }
+        elif method == 'area':
+            # 기준 m^2
+            return {
+                "m^2": 1,
+                "a": 0.01,
+                "ha": 0.0001,
+                "km^2": 1e-6,
+                "ft^2": 10.76391,
+                "yd^2": 15432.3584,
+                "ac": 0.000247105,
+                "평": 0.3025
+            }
+        elif method == 'volume':
+            # 기준 m
+            return {
+                "l": 1,
+                "cc": 1000,
+                "ml": 1000,
+                "dl": 10,
+                "cm^3": 1000,
+                "m^3": 0.001,
+                "in^3": 61.023744,
+                "ft^3": 0.035314667,
+                "yd^3": 0.001307951,
+                "gal": 0.264172052,
+                "bbl": 0.0062932662
+            }
+        elif method == 'speed':
+            # 기준 m/s
+            return {
+                "m/s": 1,
+                "m/h": 3600,
+                "km/s": 0.001,
+                "km/h": 3.6,
+                "in/s": 39.370079,
+                "in/h": 141732.283,
+                "ft/s": 3.28084,
+                "ft/h": 11811.0236,
+                "mi/s": 0.000621,
+                "mi/h": 2.236936,
+                "kn": 1.943844,
+                "mach": 0.002941
+            }
 
     ###########################################################################
     ###########################################################################

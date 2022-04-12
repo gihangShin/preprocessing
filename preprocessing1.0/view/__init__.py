@@ -138,6 +138,12 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return ps.preprocessing(payload=payload, job_id='missing_data_model')
 
+    # 18. 단위 변환 ex) kg -> g
+    @bp_preprocessing.route('/unit_conversion', methods=['POST'])
+    def unit_conversion():
+        payload = request.get_json(force=True)
+        return ps.preprocessing(payload=payload, job_id='unit_conversion')
+
     # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row
     @bp_preprocessing.route('/show_conditioned_row', methods=['POST'])
     def show_conditioned_row():

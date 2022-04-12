@@ -58,6 +58,8 @@
     14. drop_row
     15. rename_col
     16. split_col
+    17. missing_data_model
+    18. show_conditioned_row
 
 - 추출
   - export
