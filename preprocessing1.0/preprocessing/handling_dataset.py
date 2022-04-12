@@ -106,8 +106,6 @@ class HandlingDataset:
             ds = self.split_col(ds)
         elif job_id == 'missing_data_model':
             ds = self.missing_data_model(ds)
-        elif job_id == 'show_conditioned_row':
-            ds = self.show_conditioned_row(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
