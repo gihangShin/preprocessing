@@ -3,6 +3,11 @@ import math
 import os
 import random
 from datetime import datetime, timedelta
+from sklearn.linear_model import LinearRegression, Lasso, LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 import pandas as pd
 import numpy as np
@@ -39,7 +44,7 @@ class HandlingDataset:
     def sampling_dataset(self, ds):
         self.app.logger.info('sampling parameter X -> Default SEQ/ROW/FRT/50')
         sampling_method = 'SEQ'
-        ord_value = 50
+        ord_value = 5000
         ord_row = 'ROW'
         ord_set = 'FRT'
 
@@ -470,6 +475,7 @@ class HandlingDataset:
         else:
             pass
         ds.dataset.drop(index, inplace=True, axis=0)
+        ds.data_types = ds.get_types()
         return ds
 
     # 15. 컬럼 이름 변경
@@ -498,53 +504,112 @@ class HandlingDataset:
         return ds
 
     # 16. 결측치 처리 머신 러닝 모델 활용
-    # def missing_data_model(self, ds):
-    #     # 분류, 회귀 구분
-    #     # method
-    #
-    #     # 알고리즘 미지정시 분류, 회귀에 맞는 4~5가지 동작 후 가장 RMSE가 낮은 모델 사용
-    #     algorithm = ds.job_params['algorithm']
-    #
-    #     data = ds.dataset
-    #
-    #     if algorithm == 'LinearRegressor':
-    #         # model = LinearRegression()
-    #         pass
-    #     elif algorithm == 'RandomForestRegressor':
-    #         # model = RandomForestRegression()
-    #         pass
-    #     else:
-    #
-    #
-    #     self.predict_result(model, data)
-    #
-    #     ds.data_types = ds.get_types()
-    #     return ds
-    #
-    # # 16-1.
-    # def predict_result(model, data):
-    #     # dir_prev_bfnum = 0 인 것과 아닌것 나누기
-    #
-    #     data['dir_prev_bfnum'].fillna(0, inplace=True)
-    #     trainPrev_Bfnum0 = data[data['dir_prev_bfnum'] == 0]
-    #     trainPrev_BfnumNot0 = data[data['dir_prev_bfnum'] != 0]
-    #
-    #     # dir_prev_bfnum과 연관된 컬럼
-    #     X_BfnumNot0 = trainPrev_BfnumNot0.drop(columns=['title', 'distributor', 'release_time', 'director'])
-    #     X_Bfnum0 = trainPrev_Bfnum0.drop(columns=['title', 'distributor', 'release_time', 'director'])
-    #     target_name = 'dir_prev_bfnum'
-    #
-    #     # model = LinearRegression()
-    #     model.fit(X_BfnumNot0, trainPrev_BfnumNot0[target_name])
-    #
-    #     target_prediction = model.predict(X_Bfnum0)
-    #
-    #     trainPrev_Bfnum0['dir_prev_bfnum'] = target_prediction
-    #     data = trainPrev_BfnumNot0.append(trainPrev_Bfnum0)
-    #     data["dir_prev_bfnum"] = data["dir_prev_bfnum"].astype("int")
-    #
-    #     data.reset_index(inplace=True)
-    #     return data
+    def missing_data_model(self, ds):
+        # 분류, 회귀 구분
+        # method
+
+        if ds.job_params['method'] == 'regression':
+            return self.regression_model(ds)
+        elif ds.job_params['method'] == 'classification':
+            return self.classification_model(ds)
+
+
+    def regression_model(self, ds):
+        X_target_is_not_0, X_target_is_0 = self.split_null_or_not(ds)
+
+        models = list()
+        models.append(LinearRegression())
+        models.append(Lasso())
+
+        model = self.test_model(X_target_is_not_0, models, ds.job_params['target_column'])
+        ds.dataset[ds.job_params['target_column']] = self.execute_model(ds, X_target_is_not_0, X_target_is_0, model)
+        ds.data_types = ds.get_types()
+        return ds
+
+    def classification_model(self, ds):
+        X_target_is_not_0, X_target_is_0 = self.split_null_or_not(ds)
+
+        models = list()
+        models.append(LogisticRegression(solver='saga', max_iter=2000))
+        models.append(RandomForestClassifier(max_depth=10))
+
+        model = self.test_model(X_target_is_not_0, models, ds.job_params['target_column'])
+        ds.dataset[ds.job_params['target_column']] = self.execute_model(ds, X_target_is_not_0, X_target_is_0, model)
+        ds.data_types = ds.get_types()
+        return ds
+
+
+    def split_null_or_not(self, ds):
+        target_column = ds.job_params['target_column']
+        feature_list = list(ds.job_params['feature_list'])
+
+        df = pd.DataFrame()
+        # feature_scaling
+        for feature in feature_list:
+            if ds.data_types[feature] in ('categories', 'string', 'object'):
+                # 그냥 다 더미화
+                scaled_data = pd.get_dummies(ds.dataset[feature])
+                scaled_df = scaled_data
+            if ds.data_types[feature] in ('int64', 'float64', 'int', 'float'):
+                # 그냥 다 정규화 해버리자
+                scaler = StandardScaler()
+                scaled_data = scaler.fit_transform(ds.dataset[[feature]])
+                scaled_df = pd.DataFrame(scaled_data, columns=[feature])
+            if ds.data_types[feature] in ('datetime64[ns]'):
+                # 그냥 다 정규화 해버리자
+                scaled_df = pd.DataFrame()
+                scaled_df['year'] = ds.dataset[feature].dt.year
+                scaled_df['month'] = ds.dataset[feature].dt.month
+                scaled_df['day'] = ds.dataset[feature].dt.day
+
+            df = pd.concat([df, scaled_df], axis=1)
+        df = pd.concat([df, ds.dataset[target_column]], axis=1)
+        print(df.columns)
+        df[target_column].fillna(0, inplace=True)
+        X_target_is_0 = df[df[target_column] == 0]
+        X_target_is_not_0 = df[df[target_column] != 0]
+
+        print(X_target_is_0.head())
+        print(X_target_is_not_0.head())
+
+        return X_target_is_not_0, X_target_is_0
+
+    def test_model(self, data_is_not_0, models, target_column):
+        target = data_is_not_0[target_column]
+        data_is_not_0.drop(columns=[target_column], inplace=True)
+        x_train, x_test, y_train, y_test = train_test_split(data_is_not_0,
+                                                            target,
+                                                            test_size=0.2, random_state=5)
+
+        RMSE = list()
+        i = 0
+        for model in models:
+            model.fit(x_train, y_train)
+            RMSE.append(mean_squared_error(y_test, model.predict(x_test), squared=False))
+            print('RMSE_model_%d : %f' % (i + 1, RMSE[i]))
+            i += 1
+
+        tmp = min(RMSE)
+        index = RMSE.index(tmp)
+
+        print("%s / %f" % (models[index], tmp))
+
+        return models[index]
+
+    def execute_model(self, ds, X_target_is_not_0, X_target_is_0, model):
+        y_train = ds.dataset[[ds.job_params['target_column']]]
+        y_train.columns = [ds.job_params['target_column']]
+
+        X_target_is_0.drop(columns=[ds.job_params['target_column']], inplace=True)
+        target_predict = model.predict(X_target_is_0)
+        X_target_is_0[ds.job_params['target_column']] = target_predict
+        X_target_is_not_0[ds.job_params['target_column']] = y_train
+
+        data = pd.concat([X_target_is_not_0, X_target_is_0])
+        data[ds.job_params['target_column']] = data[ds.job_params['target_column']].round(2)
+        data.sort_index(inplace=True)
+
+        return data[ds.job_params['target_column']]
 
     ###########################################################################
     ###########################################################################

@@ -72,7 +72,9 @@ class Dataset:
         return self.data_types
 
     def sync_dataset_with_dtypes(self):
+        print(self.data_types)
         self.dataset = self.dataset.astype(self.data_types).replace({'nan': np.nan})
+        print(self.dataset.dtypes)
         return self
 
     def dataset_to_json(self):
