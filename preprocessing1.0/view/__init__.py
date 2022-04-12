@@ -132,10 +132,16 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return ps.preprocessing(payload=payload, job_id='split_col')
 
-    # 16. 결측치 처리 머신 러닝 모델 활용
+    # 17. 결측치 처리 머신 러닝 모델 활용
     @bp_preprocessing.route('/missing_data_model', methods=['POST', 'GET'])
     def missing_data_model():
         payload = request.get_json(force=True)
         return ps.preprocessing(payload=payload, job_id='missing_data_model')
+
+    # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row
+    @bp_preprocessing.route('/show_conditioned_row', methods=['POST'])
+    def show_conditioned_row():
+        payload = request.get_json(force=True)
+        return ps.show(payload=payload, job_id='show_conditioned_row')
 
     app.register_blueprint(bp_preprocessing)

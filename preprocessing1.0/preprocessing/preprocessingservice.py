@@ -47,12 +47,23 @@ class Preprocessing:
         ds.load_dataset_from_request(payload)
         ds.set_job_id(job_id)
 
+        result = json.dumps({
+            'dataset': ds.dataset_to_json(),
+            'dataset_dtypes': ds.get_types()}, ensure_ascii=False)
+
         if job_id == 'show_duplicate_row':
             result = json.dumps({
                 'dataset': ds.dataset_to_json(),
                 'dataset_dtypes': ds.get_types(),
-                'duplicate_values': self.hd.show_duplicate_row(ds).to_dict()
-            }, ensure_ascii=False)
+                job_id: self.hd.show_duplicate_row(ds).to_dict()
+                }, ensure_ascii=False)
+        elif job_id == 'show_conditioned_row':
+            result = json.dumps({
+                'dataset': ds.dataset_to_json(),
+                'dataset_dtypes': ds.get_types(),
+                job_id: self.hd.show_conditioned_row(ds).to_dict()
+                }, ensure_ascii=False)
+
         return result
 
     # 데이터셋 추출

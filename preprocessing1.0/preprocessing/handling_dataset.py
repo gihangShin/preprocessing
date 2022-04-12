@@ -106,6 +106,8 @@ class HandlingDataset:
             ds = self.split_col(ds)
         elif job_id == 'missing_data_model':
             ds = self.missing_data_model(ds)
+        elif job_id == 'show_conditioned_row':
+            ds = self.show_conditioned_row(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
@@ -456,6 +458,7 @@ class HandlingDataset:
         column_name = function + '(' + column2 + ')'
         return result, column_name
 
+    ##########################################################################
     # 14. 열 삭제
     def drop_row(self, ds):
         drop_type = ds.job_params['type']
@@ -478,12 +481,14 @@ class HandlingDataset:
         ds.data_types = ds.get_types()
         return ds
 
+    ##########################################################################
     # 15. 컬럼 이름 변경
     def rename_col(self, ds):
         ds.dataset.rename(columns={ds.job_params['column_name']: ds.job_params['new_column_name']}, inplace=True)
         ds.data_types = ds.get_types()
         return ds
 
+    ##########################################################################
     # 16. 컬럼 분할 ( 구분자, 컬럼 길이로 분할, 역분할(뒤에서 부터))
     def split_col(self, ds):
         if ds.job_params['type'] == 'SEP':
@@ -503,7 +508,8 @@ class HandlingDataset:
         ds.data_types = ds.get_types()
         return ds
 
-    # 16. 결측치 처리 머신 러닝 모델 활용
+    ##########################################################################
+    # 17. 결측치 처리 머신 러닝 모델 활용
     def missing_data_model(self, ds):
         # 분류, 회귀 구분
         # method
@@ -512,7 +518,6 @@ class HandlingDataset:
             return self.regression_model(ds)
         elif ds.job_params['method'] == 'classification':
             return self.classification_model(ds)
-
 
     def regression_model(self, ds):
         X_target_is_not_0, X_target_is_0 = self.split_null_or_not(ds)
@@ -537,7 +542,6 @@ class HandlingDataset:
         ds.dataset[ds.job_params['target_column']] = self.execute_model(ds, X_target_is_not_0, X_target_is_0, model)
         ds.data_types = ds.get_types()
         return ds
-
 
     def split_null_or_not(self, ds):
         target_column = ds.job_params['target_column']
@@ -610,6 +614,32 @@ class HandlingDataset:
         data.sort_index(inplace=True)
 
         return data[ds.job_params['target_column']]
+
+    ##########################################################################
+    # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row
+    def show_conditioned_row(self, ds):
+        column = ds.job_params['column']
+        operator = ds.job_params['operator']
+        value = ds.job_params['value']
+
+        if operator == '==':
+            return ds.dataset[ds.dataset[column] == value]
+        elif operator == '!=':
+            return ds.dataset[ds.dataset[column] != value]
+        elif operator == '<=':
+            return ds.dataset[ds.dataset[column] <= value]
+        elif operator == '<':
+            return ds.dataset[ds.dataset[column] < value]
+        elif operator == '>=':
+            return ds.dataset[ds.dataset[column] >= value]
+        elif operator == '>':
+            return ds.dataset[ds.dataset[column] > value]
+        elif operator == 'between':
+            value2 = ds.job_params['value2']
+            return ds.dataset[(value <= ds.dataset[column]) & (value2 >= ds.dataset[column])]
+        elif operator == 'else':
+            value2 = ds.job_params['value2']
+            return ds.dataset[(value > ds.dataset[column]) | (value2 < ds.dataset[column])]
 
     ###########################################################################
     ###########################################################################
