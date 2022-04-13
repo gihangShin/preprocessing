@@ -724,8 +724,9 @@ class HandlingDataset:
     ##########################################################################
     # 19. row, column concat(연결) (다중 가능)
     # 기능 : 행, 열 선택 / join 방식 선택 / 행 concat 시 중복 컬럼 삭제 여부
+
     def concat(self, ds):
-        # concat 할 데이터셋들
+        # concat 할 데이터 셋들
         params_of_load_dataset = list(ds.params_of_load_dataset)
 
         ds_list = self.load_datasets_for_concat(ds.status, ds.project_id, params_of_load_dataset)
@@ -745,18 +746,20 @@ class HandlingDataset:
 
         axis = ds.job_params['axis']
         if axis == 1:
-            ds_list = self.drop_duplicate_column_in_datasets(ds.dataset.columns, ds_list)
+            if ds.job_params['drop_duplicate_column'] == 1:
+                ds_list = self.drop_duplicate_column_in_datasets(ds.dataset.columns, ds_list)
+            else:
+                ds_list = self.suffix_duplicate_column_in_datasets(ds_list)
 
         ds_list.insert(0, ds)
 
         dataset_list = list()
-        for ds_1 in ds_list:
-            dataset_list.append(ds_1.dataset)
+        for ds_dataset in ds_list:
+            dataset_list.append(ds_dataset.dataset)
 
         ds.dataset = pd.concat(dataset_list, axis=axis, join=join, ignore_index=ignore_index)
 
         ds.data_types = ds.get_types()
-
         return ds
 
     def load_datasets_for_concat(self, ds_status, project_id, params_of_load_dataset):
@@ -770,6 +773,12 @@ class HandlingDataset:
             ds_list.append(ds_new)
         return ds_list
 
+    def suffix_duplicate_column_in_datasets(self, ds_list):
+        for ds_new in ds_list:
+            suffix = '_%s' % ds_new.file_id
+            ds_new.dataset = ds_new.dataset.add_suffix(suffix)
+        return ds_list
+
     def drop_duplicate_column_in_datasets(self, origin_columns, ds_list):
         # 중복 컬럼 삭제 선택 시
         unique_columns = origin_columns
@@ -777,9 +786,6 @@ class HandlingDataset:
             cols_to_use = ds_new.dataset.columns.difference(unique_columns)
             unique_columns.append(cols_to_use)
             ds_new.dataset = ds_new.dataset[cols_to_use]
-        print("unique columns")
-        print(unique_columns)
-        print()
         return ds_list
 
     ##########################################################################
