@@ -18,7 +18,10 @@ class Dataset:
         self.data_types = None
         if 'params' in params:
             self.job_params = params['params']
+            if 'params_of_load_dataset' in dict(self.job_params):
+                self.params_of_load_dataset = self.job_params['params_of_load_dataset']
         self.job_id = None
+        self.status = 'preprocessing'
 
     ###############################################
     # init
@@ -37,6 +40,11 @@ class Dataset:
         self.dataset.convert_dtypes()
         self.data_types = self.get_types()
 
+        if self.status == 'preprocessing':
+            print('')
+            print(self.file_id)
+            print(self.data_types)
+            self = self.sampling_dataset()
         ##################
         # 개발 서버에서 실제 코드
         # 데이터를 보관한 서버에서 데이터셋을 가져와야함
@@ -94,4 +102,31 @@ class Dataset:
 
     def set_job_id(self, job_id):
         self.job_id = job_id
+        return self
+
+    # 0-2. dataset 샘플링
+    def sampling_dataset(self):
+        sampling_method = 'SEQ'
+        ord_value = 500
+        ord_row = 'ROW'
+        ord_set = 'FRT'
+
+        if sampling_method == 'RND':
+            # Data Frame 셔플 수행
+            self.dataset = self.dataset.sample(frac=1).reset_index(drop=True)
+        sampled_df = pd.DataFrame()
+        if ord_row == 'ROW':
+            if ord_set == 'FRT':
+                sampled_df = self.dataset.iloc[:ord_value]
+            elif ord_set == 'BCK':
+                sampled_df = self.dataset.iloc[-ord_value:, :]
+        elif ord_row == 'PER':
+            df_len = len(self.dataset)
+            df_per = int(df_len * ord_value / 100)
+            if ord_set == 'FRT':
+                sampled_df = self.dataset.iloc[:df_per, :]
+            elif ord_set == 'BCK':
+                sampled_df = self.dataset.iloc[-df_per:, :]
+
+        self.dataset = sampled_df
         return self

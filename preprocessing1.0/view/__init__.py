@@ -144,6 +144,18 @@ def create_endpoints(app, service):
         payload = request.get_json(force=True)
         return ps.preprocessing(payload=payload, job_id='unit_conversion')
 
+    # 19. row, column concat(연결) (다중 가능)
+    @bp_preprocessing.route('/concat', methods=['POST'])
+    def concat():
+        payload = request.get_json(force=True)
+        return ps.preprocessing(payload=payload, job_id='concat')
+
+    # 20. merge(병합) (2개 데이터셋만 가능)
+    @bp_preprocessing.route('/merge', methods=['POST'])
+    def merge():
+        payload = request.get_json(force=True)
+        return ps.preprocessing(payload=payload, job_id='merge')
+
     # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row
     @bp_preprocessing.route('/show_conditioned_row', methods=['POST'])
     def show_conditioned_row():

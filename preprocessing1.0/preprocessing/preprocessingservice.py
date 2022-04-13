@@ -25,7 +25,6 @@ class Preprocessing:
     def load(self, payload):
         ds = self.dataset.Dataset(payload)
         ds.load_dataset_from_warehouse_server()
-        ds = self.hd.sampling_dataset(ds)
 
         return ds.dataset_and_dtypes_to_json()
 
@@ -62,6 +61,7 @@ class Preprocessing:
     # 데이터셋 추출
     def export(self, payload):
         ds = self.dataset.Dataset(payload)
+        ds.status = 'export'
         ds.load_dataset_from_warehouse_server()
 
         # redo
@@ -72,3 +72,4 @@ class Preprocessing:
         print(ds.data_types)
         ds.export_dataset()
         return "추출 완료"
+

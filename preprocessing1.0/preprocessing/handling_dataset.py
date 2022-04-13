@@ -16,10 +16,11 @@ import numpy as np
 # HandlingDataset 연산만 생각
 class HandlingDataset:
 
-    def __init__(self, app, dsDAO, jhDAO):
+    def __init__(self, app, dsDAO, jhDAO, dataset):
         self.app = app
         self.dsDAO = dsDAO
         self.jhDAO = jhDAO
+        self.dataset = dataset
 
     #########################################################################
     #########################################################################
@@ -40,33 +41,6 @@ class HandlingDataset:
         self.jhDAO.insert_job_history(job_history=job_history)
 
     #########################################################################
-    # 0-2. dataset 샘플링
-    def sampling_dataset(self, ds):
-        self.app.logger.info('sampling parameter X -> Default SEQ/ROW/FRT/50')
-        sampling_method = 'SEQ'
-        ord_value = 5000
-        ord_row = 'ROW'
-        ord_set = 'FRT'
-
-        if sampling_method == 'RND':
-            # Data Frame 셔플 수행
-            ds.dataset = ds.dataset.sample(frac=1).reset_index(drop=True)
-        sampled_df = pd.DataFrame()
-        if ord_row == 'ROW':
-            if ord_set == 'FRT':
-                sampled_df = ds.dataset.iloc[:ord_value]
-            elif ord_set == 'BCK':
-                sampled_df = ds.dataset.iloc[-ord_value:, :]
-        elif ord_row == 'PER':
-            df_len = len(ds.dataset)
-            df_per = int(df_len * ord_value / 100)
-            if ord_set == 'FRT':
-                sampled_df = ds.dataset.iloc[:df_per, :]
-            elif ord_set == 'BCK':
-                sampled_df = ds.dataset.iloc[-df_per:, :]
-
-        ds.dataset = sampled_df
-        return ds
 
     # 0-3. redirect_preprocess
     def redirect_preprocess(self, ds):
@@ -108,6 +82,10 @@ class HandlingDataset:
             ds = self.missing_data_model(ds)
         elif job_id == 'unit_conversion':
             ds = self.unit_conversion(ds)
+        elif job_id == 'concat':
+            ds = self.concat(ds)
+        elif job_id == 'merge':
+            ds = self.merge(ds)
         else:
             print('ERRORERRORERRORERRORERROR')
         return ds
@@ -549,6 +527,7 @@ class HandlingDataset:
 
         df = pd.DataFrame()
         # feature_scaling
+        # 나중에 테스트 -> 사용자 이해도 문제
         for feature in feature_list:
             if ds.data_types[feature] in ('categories', 'string', 'object'):
                 # 그냥 다 더미화
@@ -567,14 +546,11 @@ class HandlingDataset:
                 scaled_df['day'] = ds.dataset[feature].dt.day
 
             df = pd.concat([df, scaled_df], axis=1)
+
         df = pd.concat([df, ds.dataset[target_column]], axis=1)
-        print(df.columns)
         df[target_column].fillna(0, inplace=True)
         X_target_is_0 = df[df[target_column] == 0]
         X_target_is_not_0 = df[df[target_column] != 0]
-
-        print(X_target_is_0.head())
-        print(X_target_is_not_0.head())
 
         return X_target_is_not_0, X_target_is_0
 
@@ -616,7 +592,7 @@ class HandlingDataset:
         return data[ds.job_params['target_column']]
 
     ##########################################################################
-    # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row
+    # 조회 2. 수식 비교 조회 ex) 몸무게 > 70 인 row (masking 검색)
     def show_conditioned_row(self, ds):
         column = ds.job_params['column']
         operator = ds.job_params['operator']
@@ -744,6 +720,111 @@ class HandlingDataset:
                 "kn": 1.943844,
                 "mach": 0.002941
             }
+
+    ##########################################################################
+    # 19. row, column concat(연결) (다중 가능)
+    # 기능 : 행, 열 선택 / join 방식 선택 / 행 concat 시 중복 컬럼 삭제 여부
+    def concat(self, ds):
+        # concat 할 데이터셋들
+        params_of_load_dataset = list(ds.params_of_load_dataset)
+
+        ds_list = self.load_datasets_for_concat(ds.status, ds.project_id, params_of_load_dataset)
+
+        # join
+        if 'join' in ds.job_params:
+            join = ds.job_params['join']
+        else:
+            # default 설정 안할 시
+            join = 'outer'
+
+        # ignore_index
+        if 'ignore_index' in ds.job_params:
+            ignore_index = True if ds.job_params['ignore_index'] == 1 else False
+        else:
+            ignore_index = False
+
+        axis = ds.job_params['axis']
+        if axis == 1:
+            ds_list = self.drop_duplicate_column_in_datasets(ds.dataset.columns, ds_list)
+
+        ds_list.insert(0, ds)
+
+        dataset_list = list()
+        for ds_1 in ds_list:
+            dataset_list.append(ds_1.dataset)
+
+        ds.dataset = pd.concat(dataset_list, axis=axis, join=join, ignore_index=ignore_index)
+
+        ds.data_types = ds.get_types()
+
+        return ds
+
+    def load_datasets_for_concat(self, ds_status, project_id, params_of_load_dataset):
+        ds_list = list()
+        for params in params_of_load_dataset:
+            # params ['file_id', 'version']
+            params['project_id'] = project_id
+            ds_new = self.dataset.Dataset(params)
+            ds_new.status = ds_status
+            ds_new.load_dataset_from_warehouse_server()
+            ds_list.append(ds_new)
+        return ds_list
+
+    def drop_duplicate_column_in_datasets(self, origin_columns, ds_list):
+        # 중복 컬럼 삭제 선택 시
+        unique_columns = origin_columns
+        for ds_new in ds_list:
+            cols_to_use = ds_new.dataset.columns.difference(unique_columns)
+            unique_columns.append(cols_to_use)
+            ds_new.dataset = ds_new.dataset[cols_to_use]
+        print("unique columns")
+        print(unique_columns)
+        print()
+        return ds_list
+
+    ##########################################################################
+    # 20. merge(병합) (2개 데이터 셋만 가능)
+    def merge(self, ds):
+        # 추가할 데이터 셋 불러와야 함
+        params = ds.params_of_load_dataset[0]
+
+        params["project_id"] = ds.project_id
+        ds_new = self.dataset.Dataset(params)
+
+        ds_new.load_dataset_from_warehouse_server()
+        print(ds_new.dataset.dtypes)
+
+        # 필요한 파라미터들
+        # how               -- (not essential)
+        # both              -- key
+        # left_right_column -- left_column, right_column
+        # left_right_index  -- none
+        # column_index      -- left_column
+        # index_column      -- right_column
+        method = ds.job_params['method']
+
+        if 'how' in ds.job_params:
+            how = ds.job_params['how']
+        else:  # default 설정 안할 시
+            how = 'inner'
+
+        if method == 'both':
+            ds.dataset = pd.merge(ds.dataset, ds_new.dataset, on=ds.job_params['key'], how=how)
+        elif method == 'left_right_column':
+            ds.dataset = pd.merge(ds.dataset, ds_new.dataset, left_on=ds.job_params['left_column'],
+                                  right_on=ds.job_params['right_column'], how=how)
+        elif method == 'left_right_index':
+            ds.dataset = pd.merge(ds.dataset, ds_new.dataset, left_index=True,
+                                  right_index=True, how=how)
+        elif method == 'column_index':
+            ds.dataset = pd.merge(ds.dataset, ds_new.dataset, left_on=ds.job_params['left_column'],
+                                  right_index=True, how=how)
+        elif method == 'index_column':
+            ds.dataset = pd.merge(ds.dataset, ds_new.dataset, left_index=True,
+                                  right_on=ds.job_params['right_column'], how=how)
+
+        ds.data_types = ds.get_types()
+        return ds
 
     ###########################################################################
     ###########################################################################

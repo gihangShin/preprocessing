@@ -31,7 +31,7 @@ def create_app():
     jobHistoryDAO = job_historyDAO.JobHistoryDao(db, app)
     # preprocessing 전처리 (service)
     dataset1 = dataset
-    hd = handling_dataset.HandlingDataset(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO)
+    hd = handling_dataset.HandlingDataset(app, dsDAO=dsDAO, jhDAO=jobHistoryDAO, dataset=dataset1)
     pre_service = preprocessingservice.Preprocessing(hd=hd, dataset=dataset1)
     # profiling_service = <>.class(app)
 
