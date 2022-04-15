@@ -42,24 +42,30 @@
 
 - 전처리 동작
   - redirect_preprocess (스위치 기능 수행)
-    1. delete_column
-    2. missing_value
-    3. set_col_prop
-    4. set_col_prop_to_datetime
-    5. split_datetime
-    6. dt_to_str_format
-    7. diff_datetime
-    8. change_column_order
-    9. case_sensitive
-    10. replace_by_input_value
-    11. remove_space_front_and_rear
-    12. drop_duplicate_row
-    13. calculating_column
-    14. drop_row
-    15. rename_col
-    16. split_col
-    17. missing_data_model
-    18. show_conditioned_row
+    - prefix url : /preprocessing/...
+      1. delete_column
+      2. missing_value
+      3. set_col_prop
+      4. set_col_prop_to_datetime
+      5. split_datetime
+      6. dt_to_str_format
+      7. diff_datetime
+      8. change_column_order
+      9. case_sensitive
+      10. replace_by_input_value
+      11. remove_space_front_and_rear
+      12. drop_duplicate_row
+      13. calculating_column
+      14. drop_row
+      15. rename_col
+      16. split_col
+      17. missing_data_model
+      18. unit_conversion
+      19. concat
+      20. merge
+  - 조회기능
+    - show_duplicate_row
+    - show_conditioned_row
 
 - 추출
   - export
